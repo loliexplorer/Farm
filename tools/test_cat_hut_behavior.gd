@@ -10,7 +10,7 @@ func _run() -> void:
 	root.add_child(main_scene)
 	await process_frame
 
-	var cat = main_scene.cat_helper
+	var cat = main_scene.cat_helper_orange
 	assert(cat != null, "Cat helper must exist")
 	var CatHelperScript = load("res://scripts/cat_helper.gd")
 
@@ -19,8 +19,8 @@ func _run() -> void:
 	assert(cat.is_hired == true, "Cat should be hired")
 	print("✓ Cat hired successfully")
 
-	# 2. When cat is at TENT_SLEEP_POS and has no jobs:
-	cat.position = CatHelperScript.TENT_SLEEP_POS
+	# 2. When cat is at get_sleep_pos() and has no jobs:
+	cat.position = cat.get_sleep_pos()
 	cat.state = CatHelperScript.State.IDLE
 	cat._scan_timer = 0.5 # Force scan
 	cat._process(0.01)
@@ -60,7 +60,7 @@ func _run() -> void:
 	print("✓ Cat walks back to Junimo Hut when finished working")
 
 	# Move cat to hut and process arrival
-	cat.position = CatHelperScript.TENT_SLEEP_POS
+	cat.position = cat.get_sleep_pos()
 	cat.waypoints.clear()
 	cat._process(0.01)
 	assert(cat.visible == false, "Cat disappears inside hut upon arrival!")

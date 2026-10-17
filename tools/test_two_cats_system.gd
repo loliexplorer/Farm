@@ -57,12 +57,13 @@ func _run() -> void:
 	assert(main_scene.cat_helpers.size() >= 2, "main.cat_helpers must contain at least 2 cats")
 	print("✓ Cat helpers successfully instantiated and cross-linked")
 
-	# Initial states check
+	# Initial states check: Orange cat arrives at front yard, Calico sleeps inside Junimo Hut
 	assert(calico.is_hired == false, "Calico cat should not be hired initially")
 	assert(orange.is_hired == false, "Orange cat should not be hired initially")
-	assert(orange.visible == false, "Orange cat must be hidden inside Junimo Hut before being hired")
-	assert(orange.position == orange.get_sleep_pos(), "Orange cat should wait at sleep position inside hut")
-	print("✓ Orange cat initial state: hidden inside Junimo Hut waiting to be hired")
+	assert(calico.visible == false, "Calico cat must be hidden inside Junimo Hut before being hired")
+	assert(calico.position == calico.get_sleep_pos(), "Calico cat should wait at sleep position inside hut")
+	assert(orange.visible == true, "Orange cat arrives at farm front yard initially")
+	print("✓ Cat initial states verified (Orange cat arrives at yard, Calico waits in Hut)")
 
 	# -------------------------------------------------------------------------
 	# 3. Cat Panel UI & In-Menu Hiring
@@ -90,16 +91,16 @@ func _run() -> void:
 	panel._on_hire_pressed()
 	assert(orange.is_hired == true, "Orange cat must now be hired")
 	assert(orange.visible == true, "Orange cat must appear upon being hired")
-	assert(orange.position == orange.get_entrance_pos(), "Orange cat must appear at Junimo Hut doorstep: %s" % str(orange.position))
 	assert(panel._manage_view.visible == true, "Panel should automatically transition to management view")
 	assert(panel._manage_title_lbl.text.contains("MÈO MƯỚP VÀNG"), "Management title should display Orange cat name")
-	print("✓ Orange cat hired directly inside cat menu and appeared at Junimo Hut door (%s)" % str(orange.position))
+	print("✓ Orange cat hired directly inside cat menu (%s)" % str(orange.position))
 
 	# Hire Calico Cat as well
 	panel.cat = calico
 	panel._on_hire_pressed()
 	assert(calico.is_hired == true, "Calico cat must now be hired")
-	print("✓ Calico cat also hired")
+	assert(calico.position == calico.get_entrance_pos(), "Calico cat must appear at Junimo Hut doorstep: %s" % str(calico.position))
+	print("✓ Calico cat also hired and appeared at Junimo Hut doorstep")
 
 	# -------------------------------------------------------------------------
 	# 4. Multi-Cat Gardening & Conflict Prevention
@@ -151,9 +152,9 @@ func _run() -> void:
 	print("\n--- 5. Testing Dismissal Behavior ---")
 	orange.dismiss()
 	assert(orange.is_hired == false, "Orange cat should not be hired after dismissal")
-	assert(orange.visible == false, "Orange cat must disappear inside hut when dismissed")
-	assert(orange.position == orange.get_sleep_pos(), "Orange cat must be positioned at hut sleep pos")
-	print("✓ Orange cat correctly disappears inside Junimo Hut upon dismissal")
+	assert(orange.visible == true, "Orange cat stays visible waiting at yard when dismissed")
+	assert(orange.position == CatHelperScript.WAITING_POS, "Orange cat must be positioned at front yard waiting pos")
+	print("✓ Orange cat correctly waits at front yard upon dismissal")
 
 	# Re-hire for next test
 	orange.hire()

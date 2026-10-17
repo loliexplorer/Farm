@@ -79,19 +79,20 @@ func start_new_game() -> void:
 	main._npc_met = false
 	main.world_builder.build_fixed_foliage()
 
-	if is_instance_valid(main.cat_helper):
-		main.cat_helper.dismiss()
-		main.cat_helper.position = CatHelperScript.SPAWN_POS
-		main.cat_helper.state = CatHelperScript.State.ARRIVING
-		main.cat_helper.waypoints = [
+	if is_instance_valid(main.get("cat_helper_orange")):
+		main.cat_helper_orange.dismiss()
+		main.cat_helper_orange.position = CatHelperScript.SPAWN_POS
+		main.cat_helper_orange.state = CatHelperScript.State.ARRIVING
+		main.cat_helper_orange.waypoints = [
 			CatHelperScript.ROAD_JUNCTION_POS,
 			Vector2(CatHelperScript.ROAD_JUNCTION_POS.x, CatHelperScript.WAITING_POS.y),
 			CatHelperScript.WAITING_POS
 		]
-		main.cat_helper._show_bubble_text("...")
+		main.cat_helper_orange._show_bubble_text("...")
+		main.cat_helper_orange.visible = true
 
-	if is_instance_valid(main.get("cat_helper_orange")):
-		main.cat_helper_orange.dismiss()
+	if is_instance_valid(main.cat_helper):
+		main.cat_helper.dismiss()
 	if is_instance_valid(main.get("cat_helper_white")):
 		main.cat_helper_white.dismiss()
 	if is_instance_valid(main.get("cat_helper_tuxedo")):

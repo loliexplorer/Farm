@@ -116,11 +116,17 @@ func nearest_interactable() -> Dictionary:
 				var cname: String = str(ch.get("cat_name")) if "cat_name" in ch else "Mèo"
 				var cat_lbl: String = "%s 🐱" % cname
 				if not ch.is_hired:
-					cat_lbl = "%s 🐱 (Phỏng vấn / Thuê)" % cname
+					if str(ch.get("cat_role")) == "gardener":
+						cat_lbl = "%s 🐱 (Công việc làm vườn)" % cname
+					else:
+						cat_lbl = "%s 🐱 (Phỏng vấn / Thuê)" % cname
 				elif ch.state == CatHelperScript.State.SLEEPING:
 					cat_lbl = "%s 🐱 (Đang ngủ Zzz...)" % cname
 				else:
-					cat_lbl = "%s 🐱 (Quản lý / Giao việc)" % cname
+					if str(ch.get("cat_role")) == "gardener":
+						cat_lbl = "%s 🐱 (Công việc làm vườn)" % cname
+					else:
+						cat_lbl = "%s 🐱 (Quản lý / Giao việc)" % cname
 				var captured_cat: Node2D = ch
 				best = {
 					"pos": ch.position,

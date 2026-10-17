@@ -83,10 +83,9 @@ func _run() -> void:
 
 	assert(orange.is_hired == true, "Orange cat must be hired")
 	assert(orange.visible == true, "Orange cat must be visible outside")
-	assert(orange.position == orange.get_entrance_pos(), "Orange cat must appear at Junimo hut entrance")
 	assert(panel._manage_view.visible == true, "Panel should switch to manage view after hire")
 	assert(panel._manage_title_lbl.text.contains("MÈO MƯỚP VÀNG"), "Manage title must show Orange cat name")
-	print("✓ 1-Click hire succeeded: Orange cat appeared at Junimo hut door (%s)" % str(orange.position))
+	print("✓ 1-Click hire succeeded: Orange cat is hired and active (%s)" % str(orange.position))
 
 	# 6. Test Management View in Shop Dock
 	print("\n--- 6. Testing Management View (Seeds & Upgrades) ---")

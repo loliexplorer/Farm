@@ -744,9 +744,9 @@ func _ready() -> void:
 
 	_start_bubble_bob()
 
-	# Khởi động lộ trình vào nông trại
+	# Khởi động lộ trình vào nông trại: Mèo cam làm vườn đến trước nhà người chơi
 	if not is_hired:
-		if cat_breed == "calico":
+		if cat_breed == "orange":
 			position = SPAWN_POS
 			state = State.ARRIVING
 			waypoints = [ROAD_JUNCTION_POS, Vector2(ROAD_JUNCTION_POS.x, WAITING_POS.y), WAITING_POS]
@@ -2171,8 +2171,12 @@ func _deposit_items_to_shed() -> void:
 func hire() -> void:
 	is_hired = true
 	state = State.IDLE
-	if cat_breed == "orange" or cat_breed == "white" or cat_breed == "tuxedo":
+	if cat_breed == "calico" or cat_breed == "white" or cat_breed == "tuxedo":
 		position = get_entrance_pos()
+		visible = true
+		facing_dir = "down"
+		_spr.texture = _tex("down", 0)
+	elif cat_breed == "orange":
 		visible = true
 		facing_dir = "down"
 		_spr.texture = _tex("down", 0)
@@ -2198,7 +2202,7 @@ func hire() -> void:
 func dismiss() -> void:
 	is_hired = false
 	state = State.WAITING_HIRE
-	if cat_breed == "orange" or cat_breed == "white" or cat_breed == "tuxedo":
+	if cat_breed == "calico" or cat_breed == "white" or cat_breed == "tuxedo":
 		visible = false
 		position = get_sleep_pos()
 		_hide_bubble()
@@ -2440,7 +2444,7 @@ func load_save_dict(d: Dictionary) -> void:
 			visible = true
 	else:
 		state = State.WAITING_HIRE
-		if cat_breed == "orange" or cat_breed == "white" or cat_breed == "tuxedo":
+		if cat_breed == "calico" or cat_breed == "white" or cat_breed == "tuxedo":
 			visible = false
 			position = get_sleep_pos()
 			_hide_bubble()

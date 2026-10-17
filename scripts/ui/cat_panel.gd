@@ -13,13 +13,16 @@ signal feedback(text: String, color: Color)
 
 var cats: Array = []
 var cat: Node2D = null
+var target_single_cat: Node2D = null
 
 var back_btn: Button
 var dock_panel: PanelContainer
 
 var _container: VBoxContainer
+var _header_title_lbl: Label
 var _cat_selector_bar: HBoxContainer
 var _hire_view: VBoxContainer
+var _hire_tip_lbl: Label
 var _manage_view: VBoxContainer
 
 # Hire view dynamic fields
@@ -34,6 +37,7 @@ var _hire_btn: Button
 # Manage view dynamic fields
 var _manage_title_lbl: Label
 var _manage_avatar_rect: TextureRect
+var _manage_back_list_btn: Button
 
 # Quản lý views
 var _status_label: Label
@@ -146,6 +150,7 @@ func _ready() -> void:
 	var title := UIKit.title_label(head, "DỊCH VỤ MÈO LÀM NÔNG", 20, UIKit.COLOR_TEXT_TITLE)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_header_title_lbl = title
 
 	var close_head_btn := UIKit.styled_button(head, "✕ Đóng (Esc)", 12, "danger")
 	close_head_btn.pressed.connect(close)
@@ -221,6 +226,7 @@ func _refresh_cat_selector() -> void:
 
 
 func open(cat_node: Node2D = null, all_cats: Array = []) -> void:
+	target_single_cat = cat_node
 	if not all_cats.is_empty():
 		cats = all_cats
 	elif cats.is_empty() and cat_node != null:
@@ -233,12 +239,32 @@ func open(cat_node: Node2D = null, all_cats: Array = []) -> void:
 
 	visible = true
 
-	# Khi nhấn vào biểu tượng mèo trên HUD / phím M / Nhà Junimo (cat_node == null),
-	# luôn luôn mở Danh Sách Mèo (cards) để xem & chọn tất cả các mèo!
-	# Chỉ mở thẳng trang quản lý nếu người chơi tương tác trực tiếp với một chú mèo cụ thể đã thuê ngoài sân.
-	if cat_node != null and cat_node.is_hired:
-		_show_manage_mode()
+	# Cập nhật tiêu đề cửa sổ
+	if _header_title_lbl != null:
+		if target_single_cat != null:
+			if str(target_single_cat.get("cat_role")) == "gardener":
+				_header_title_lbl.text = "🐱 CÔNG VIỆC LÀM VƯỜN"
+			else:
+				var cname: String = str(target_single_cat.get("cat_name")) if "cat_name" in target_single_cat else "Mèo"
+				_header_title_lbl.text = "🐱 %s" % cname.to_upper()
+		else:
+			_header_title_lbl.text = "DỊCH VỤ MÈO LÀM NÔNG"
+
+	# Khi tương tác trực tiếp với một chú mèo cụ thể ngoài sân:
+	if cat_node != null:
+		if cat_node.is_hired:
+			# Đã thuê -> mở thẳng giao diện quản lý / giao việc
+			_show_manage_mode()
+			if _manage_back_list_btn != null:
+				_manage_back_list_btn.visible = false
+		else:
+			# Chưa thuê -> hiển thị thông tin công việc và nút thuê của RIÊNG chú mèo này
+			_show_hire_mode()
 	else:
+		# Khi nhấn vào biểu tượng mèo trên HUD / phím M / Nhà Junimo (cat_node == null):
+		# Mở danh sách toàn bộ mèo để thuê & quản lý
+		if _manage_back_list_btn != null:
+			_manage_back_list_btn.visible = true
 		_show_hire_mode()
 
 	_refresh_cat_selector()
@@ -251,6 +277,7 @@ func close() -> void:
 	if _modal_root != null and _modal_root.visible:
 		_hide_info_modal()
 		return
+	target_single_cat = null
 	visible = false
 	closed.emit()
 
@@ -344,6 +371,7 @@ func _build_hire_view() -> void:
 
 	var tip_lbl := UIKit.label(_hire_view, "Chọn chú mèo bạn muốn thuê để tự động phụ việc làm vườn:", 12, UIKit.COLOR_TEXT_MUTED)
 	tip_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hire_tip_lbl = tip_lbl
 
 	# Danh sách thẻ mèo phong cách cửa hàng (Có gắn TouchScrollHelper)
 	var hire_scroll := ScrollContainer.new()
@@ -394,7 +422,25 @@ func _refresh_hire_data() -> void:
 
 	_update_wallet_label()
 
-	var target_list: Array = cats if not cats.is_empty() else ([cat] if cat != null else [])
+	if _hire_tip_lbl != null:
+		if target_single_cat != null and is_instance_valid(target_single_cat):
+			var cname: String = str(target_single_cat.get("cat_name")) if "cat_name" in target_single_cat else "Mèo"
+			if str(target_single_cat.get("cat_role")) == "gardener":
+				_hire_tip_lbl.text = "Công việc làm vườn của %s · Thuê mèo để tự động phụ việc làm nương:" % cname
+			else:
+				_hire_tip_lbl.text = "Thông tin & Thuê %s làm việc:" % cname
+		else:
+			_hire_tip_lbl.text = "Chọn chú mèo bạn muốn thuê để tự động phụ việc làm vườn:"
+
+	# Danh sách thẻ mèo: Nếu tương tác mèo đơn lẻ ngoài sân thì CHỈ HIỆN 1 MÈO ĐÓ!
+	var target_list: Array = []
+	if target_single_cat != null and is_instance_valid(target_single_cat):
+		target_list = [target_single_cat]
+	elif not cats.is_empty():
+		target_list = cats
+	elif cat != null:
+		target_list = [cat]
+
 	for c_node in target_list:
 		if c_node == null or not is_instance_valid(c_node):
 			continue
@@ -617,6 +663,8 @@ func _on_hire_pressed() -> void:
 	feedback.emit("Đã thuê %s %s thành công! 🐱%s" % [cat.cat_name, job_title, extra], Color(0.65, 1.0, 0.6))
 	_refresh_cat_selector()
 	_show_manage_mode()
+	if target_single_cat != null and _manage_back_list_btn != null:
+		_manage_back_list_btn.visible = false
 
 
 # ---------- GIAO DIỆN QUẢN LÝ MÈO ĐANG LÀM VIỆC ----------
@@ -634,6 +682,7 @@ func _build_manage_view() -> void:
 
 	var back_list_btn := UIKit.styled_button(head, "« Danh sách mèo", 12, "neutral")
 	back_list_btn.pressed.connect(_show_hire_mode)
+	_manage_back_list_btn = back_list_btn
 
 	_manage_title_lbl = UIKit.title_label(head, "🐱 QUẢN LÝ MÈO LÀM NÔNG", 17, UIKit.COLOR_TEXT_TITLE)
 	_manage_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -641,8 +690,13 @@ func _build_manage_view() -> void:
 	var dismiss_btn := UIKit.styled_button(head, "Cho nghỉ việc", 12, "danger")
 	dismiss_btn.pressed.connect(func():
 		if cat != null:
+			var cname: String = str(cat.get("cat_name")) if "cat_name" in cat else "Mèo"
 			cat.dismiss()
-			_show_hire_mode()
+			if _manage_back_list_btn != null and not _manage_back_list_btn.visible:
+				feedback.emit("Đã cho %s nghỉ ngơi! 🐱💤" % cname, Color(1.0, 0.85, 0.4))
+				close()
+			else:
+				_show_hire_mode()
 	)
 
 	# Bảng trạng thái hoạt động của mèo
@@ -836,7 +890,10 @@ func _refresh_manage_data() -> void:
 
 	if _manage_title_lbl != null:
 		var cname: String = str(cat.get("cat_name")) if "cat_name" in cat else "Mèo"
-		_manage_title_lbl.text = "🐱 QUẢN LÝ %s" % cname.to_upper()
+		if str(cat.get("cat_role")) == "gardener":
+			_manage_title_lbl.text = "🐱 CÔNG VIỆC LÀM VƯỜN (%s)" % cname.to_upper()
+		else:
+			_manage_title_lbl.text = "🐱 QUẢN LÝ %s" % cname.to_upper()
 	if _manage_avatar_rect != null:
 		_manage_avatar_rect.texture = TextureGen.cat_char_tex("down", 0, cat.cat_breed)
 
