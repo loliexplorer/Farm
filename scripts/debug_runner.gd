@@ -86,6 +86,10 @@ func debug_step() -> void:
 			main.fish_shop.close()
 			main.mode = main.Mode.PLAY
 			Inventory.coops = {"small": 4, "large": 2}
+			Inventory.set_coop_tier("chicken", 2)
+			Inventory.set_coop_tier("cow", 2)
+			Inventory.set_coop_tier("sheep", 2)
+			Inventory.set_coop_tier("pig", 2)
 			for aid in ["ga_de", "ga_thit", "ga_vuon", "vit_thit", "cut", "bocau", "ngong", "da_dieu"]:
 				Inventory.buy_animal(str(aid))
 			main.player.position = Vector2(310, 610)

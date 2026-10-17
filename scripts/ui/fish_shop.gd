@@ -505,9 +505,9 @@ func refresh() -> void:
 
 	# 2. TAB MỒI CÂU & VẬT TƯ (bait)
 	elif _current_cat == "bait":
-		grid.add_child(_build_bait_card("worm", "Mồi Trùn Quế", 10, "Mồi giun tự nhiên, thu hút cá phổ thông & trung cấp."))
-		grid.add_child(_build_bait_card("caterpillar", "Mồi Sâu Bọ", 15, "Mồi tươi ngon bắt trên đồng ruộng, thu hút cá hiếm."))
-		grid.add_child(_build_bait_card("paste", "Thính Cám Thơm", 25, "Hỗn hợp cám thơm ngào ngạt, tăng tốc độ cá cắn câu!"))
+		grid.add_child(_build_bait_card("worm", "Mồi Trùn Quế", 10, "Mồi giun tự nhiên. Hụt gốc -5%, Phổ thông +5%"))
+		grid.add_child(_build_bait_card("caterpillar", "Mồi Sâu Bọ", 15, "Mồi sâu đồng tươi. Hụt gốc -5%, Trung cấp +5%"))
+		grid.add_child(_build_bait_card("paste", "Thính Cám Thơm", 25, "Hỗn hợp cám thơm. Hụt gốc -5%, Hiếm +5%"))
 
 	# 3. TAB BÁN CÁ (fish)
 	elif _current_cat == "fish":
@@ -652,7 +652,7 @@ func _build_bait_card(bait_id: String, bait_name: String, price: int, desc: Stri
 		_show_info_modal({
 			"title": bait_name,
 			"desc": desc,
-			"icon": TextureGen.get_tex("caterpillar") if bait_id == "caterpillar" else TextureGen.get_feed_icon(),
+			"icon": TextureGen.get_tex(bait_id) if TextureGen.get_tex(bait_id) != null else TextureGen.get_feed_icon(),
 			"type": "buy_bait",
 			"id": bait_id,
 			"price": price,
@@ -689,7 +689,7 @@ func _build_bait_card(bait_id: String, bait_name: String, price: int, desc: Stri
 	top_h.add_child(info_btn)
 
 	var ic := TextureRect.new()
-	ic.texture = TextureGen.get_tex("caterpillar") if bait_id == "caterpillar" else TextureGen.get_feed_icon()
+	ic.texture = TextureGen.get_tex(bait_id) if TextureGen.get_tex(bait_id) != null else TextureGen.get_feed_icon()
 	ic.custom_minimum_size = Vector2(44, 44)
 	ic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	v.add_child(ic)

@@ -37,8 +37,17 @@ const RODS := [
 	{"tier": "high", "name": "Cần câu cao cấp", "casts": 30, "price": 1200, "color": "ffd54f"},
 ]
 
+const BAITS := [
+	{"id": "worm", "name": "Mồi Trùn Quế", "price": 10, "color": "e57373",
+		"desc": "Mồi giun quế tự nhiên. Hụt gốc -5%, Phổ thông +5%."},
+	{"id": "caterpillar", "name": "Mồi Sâu Bọ", "price": 15, "color": "81c784",
+		"desc": "Mồi sâu bọ ruộng lúa. Hụt gốc -5%, Trung cấp +5%."},
+	{"id": "paste", "name": "Thính Cám Thơm", "price": 25, "color": "ffb74d",
+		"desc": "Hỗn hợp cám thơm ngào ngạt. Hụt gốc -5%, Hiếm +5%."},
+]
+
 const FISH_TIME := 15.0  # thả câu -> kéo: 15 giây
-# Tỷ lệ mỗi lượt câu: 30% trống, 40% phổ thông, 20% trung cấp, 9.99% hiếm, 0.01% huyền thoại
+# Tỷ lệ gốc cần sơ cấp mặc định (tương thích ngược)
 const ODDS_NOTHING := 0.30
 const ODDS_COMMON := 0.40
 const ODDS_MID := 0.20
@@ -59,6 +68,70 @@ static func get_rod(tier: String) -> Dictionary:
 	return {}
 
 
+static func get_bait(id: String) -> Dictionary:
+	for b in BAITS:
+		if b.id == id:
+			return b
+	if id == "sau_bo":
+		return get_bait("caterpillar")
+	return {}
+
+
+static func get_bait_name(id: String) -> String:
+	var b := get_bait(id)
+	return str(b.get("name", "Mồi câu")) if not b.is_empty() else ""
+
+
+# Trả về bảng tỷ lệ (tổng = 1.0) theo loại cần câu và mồi gắn thêm
+static func get_odds(tier: String = "basic", bait: String = "") -> Dictionary:
+	var nothing: float = 0.30
+	var common: float = 0.40
+	var mid: float = 0.20
+	var rare: float = 0.0999
+	var legend: float = 0.0001
+
+	match tier:
+		"mid":
+			nothing = 0.25
+			common = 0.40
+			mid = 0.25
+			rare = 0.0999
+			legend = 0.0001
+		"high":
+			nothing = 0.25
+			common = 0.40
+			mid = 0.20
+			rare = 0.1499
+			legend = 0.0001
+		_: # "basic"
+			nothing = 0.30
+			common = 0.40
+			mid = 0.20
+			rare = 0.0999
+			legend = 0.0001
+
+	# Gắn mồi mỗi loại có tỷ lệ cố định khi gắn thêm:
+	# - Trùn quế: Hụt gốc -5%, Phổ thông +5%
+	# - Mồi sâu bọ: Hụt gốc -5%, Trung cấp +5%
+	# - Thính cám thơm: Hụt gốc -5%, Hiếm +5%
+	if bait != "":
+		nothing = maxf(0.0, nothing - 0.05)
+		if bait == "worm":
+			common += 0.05
+		elif bait == "caterpillar" or bait == "sau_bo":
+			mid += 0.05
+		elif bait == "paste":
+			rare += 0.05
+
+	return {
+		"nothing": nothing,
+		"common": common,
+		"mid": mid,
+		"rare": rare,
+		"legend": legend,
+	}
+
+
 # Chọn con cá trong bậc; Cá Trê Vàng chỉ lên câu vào BAN ĐÊM (clock ngoài 7:00-19:00).
 static func pick_fish(tier: String, night: bool) -> Dictionary:
 	var pool: Array = []
@@ -73,16 +146,18 @@ static func pick_fish(tier: String, night: bool) -> Dictionary:
 	return pool[randi() % pool.size()]
 
 
-# Cuộn kết quả một lượt câu: "" = không cá, ngược lại trả về Dictionary cá.
-static func roll_cast(night: bool) -> Dictionary:
+# Cuộn kết quả một lượt câu: "" = không cá (Hụt), ngược lại trả về Dictionary cá.
+static func roll_cast(night: bool, rod_tier: String = "basic", bait: String = "") -> Dictionary:
+	var odds := get_odds(rod_tier, bait)
 	var r := randf()
-	if r < ODDS_NOTHING:
+	if r < odds.nothing:
 		return {}
 	var tier := "legend"
-	if r < ODDS_NOTHING + ODDS_COMMON:
+	if r < odds.nothing + odds.common:
 		tier = "common"
-	elif r < ODDS_NOTHING + ODDS_COMMON + ODDS_MID:
+	elif r < odds.nothing + odds.common + odds.mid:
 		tier = "mid"
-	elif r < ODDS_NOTHING + ODDS_COMMON + ODDS_MID + ODDS_RARE:
+	elif r < odds.nothing + odds.common + odds.mid + odds.rare:
 		tier = "rare"
 	return pick_fish(tier, night)
+

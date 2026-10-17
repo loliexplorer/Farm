@@ -8,6 +8,7 @@ const CatHelperScript := preload("res://scripts/cat_helper.gd")
 const WorldBuilderScript := preload("res://scripts/world_builder.gd")
 const PenManagerScript := preload("res://scripts/pen_manager.gd")
 const FishingManagerScript := preload("res://scripts/fishing_manager.gd")
+const FishDB := preload("res://scripts/fish_db.gd")
 
 var main: Node2D
 var interactables: Array = []
@@ -89,14 +90,15 @@ func nearest_interactable() -> Dictionary:
 			best = it.duplicate()
 			if it_pos == FishingManagerScript.FISH_SPOT_POS:
 				var active_t: String = str(Inventory.active_item.get("type", ""))
+				var bait_tag := " · Mồi: %s" % FishDB.get_bait_name(Inventory.attached_bait) if Inventory.attached_bait != "" else ""
 				if active_t == "rod" and Inventory.total_casts() > 0:
-					best.label = "Câu cá (%d lượt)" % Inventory.total_casts()
+					best.label = "Câu cá (%d lượt%s)" % [Inventory.total_casts(), bait_tag]
 					best.cb = main.fishing_manager.start_fishing
 				elif Inventory.water_level < Inventory.water_max:
 					best.label = "Múc nước vào bình (%d/%d) 💧" % [Inventory.water_level, Inventory.water_max]
 					best.cb = main.fishing_manager.refill_water_can
 				elif Inventory.total_casts() > 0:
-					best.label = "Câu cá (%d lượt)" % Inventory.total_casts()
+					best.label = "Câu cá (%d lượt%s)" % [Inventory.total_casts(), bait_tag]
 					best.cb = main.fishing_manager.start_fishing
 				else:
 					best.label = "Bình nước đã đầy (20/20) 💧"

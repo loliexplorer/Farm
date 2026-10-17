@@ -114,6 +114,10 @@ func spawn_water_ripple(pos: Vector2, r_scale: float = 1.0, r_dur: float = 0.7) 
 	return spr
 
 
+var _current_cast_tier: String = "basic"
+var _current_cast_bait: String = ""
+
+
 func start_fishing() -> void:
 	if fishing:
 		return
@@ -124,11 +128,27 @@ func start_fishing() -> void:
 		if is_instance_valid(main.hud):
 			main.hud.toast("Bạn đã kiệt sức! Không đủ sức câu cá (cần %d⚡). Hãy ăn nông sản hoặc thịt!" % int(fish_stamina), Color(1.0, 0.45, 0.35))
 		return
-	var tier := str(Inventory.take_cast())
+
+	var preferred_tier := ""
+	if Inventory.active_item.get("type", "") == "rod":
+		preferred_tier = str(Inventory.active_item.get("tier", ""))
+	var tier := str(Inventory.take_cast(preferred_tier))
 	if tier == "":
 		if is_instance_valid(main.hud):
 			main.hud.toast("Hết lượt câu! Mua cần câu ở Chú Hai (bờ ao).", Color(1.0, 0.6, 0.5))
 		return
+	_current_cast_tier = tier
+
+	var used_bait := ""
+	if Inventory.attached_bait != "" and Inventory.bait_count(Inventory.attached_bait) > 0:
+		used_bait = Inventory.attached_bait
+		Inventory.take_bait(used_bait, 1)
+	elif Inventory.attached_bait != "":
+		Inventory.attached_bait = ""
+		if is_instance_valid(main.hud):
+			main.hud.toast("Đã hết mồi câu! Thả câu không mồi.", Color(1.0, 0.7, 0.4))
+	_current_cast_bait = used_bait
+
 	GameState.use_stamina(fish_stamina)
 	var rod := FishDB.get_rod(tier)
 	fishing = true
@@ -142,7 +162,10 @@ func start_fishing() -> void:
 	main.fishing_left = fish_time
 	player.can_move = false
 	if is_instance_valid(main.hud):
-		main.hud.toast("Đã thả câu (%s — còn %d lượt)" % [rod.name, Inventory.total_casts()], Color(0.6, 0.9, 1.0))
+		var bait_txt := ""
+		if used_bait != "":
+			bait_txt = " + %s" % FishDB.get_bait_name(used_bait)
+		main.hud.toast("Đã thả câu (%s%s — còn %d lượt)" % [rod.name, bait_txt, Inventory.total_casts()], Color(0.6, 0.9, 1.0))
 
 	var dir := (POND_RECT.get_center() - player.position).normalized()
 	player.facing = dir
@@ -216,7 +239,7 @@ func finish_fishing() -> void:
 	if is_instance_valid(player):
 		player.stop_fishing_anim()
 	var night := GameState.clock < GameState.DAY_START or GameState.clock >= 1140
-	var f := FishDB.roll_cast(night)
+	var f := FishDB.roll_cast(night, _current_cast_tier, _current_cast_bait)
 	if f.is_empty():
 		if main.has_node("/root/AudioManager"):
 			main.get_node("/root/AudioManager").play_sfx("fish_plop")

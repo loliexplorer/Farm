@@ -316,6 +316,10 @@ var title_screen: CanvasLayer:
 	get: return ui_coordinator.title_screen if ui_coordinator != null else null
 	set(v): if ui_coordinator != null: ui_coordinator.title_screen = v
 
+var intro_cutscene: CanvasLayer:
+	get: return ui_coordinator.intro_cutscene if ui_coordinator != null else null
+	set(v): if ui_coordinator != null: ui_coordinator.intro_cutscene = v
+
 var pause_menu: CanvasLayer:
 	get: return ui_coordinator.pause_menu if ui_coordinator != null else null
 	set(v): if ui_coordinator != null: ui_coordinator.pause_menu = v
@@ -545,6 +549,15 @@ func _quest_save_data() -> Dictionary:
 
 func _save_now() -> void:
 	save_load_manager.save_now()
+
+func on_title_start_requested() -> void:
+	if is_instance_valid(intro_cutscene):
+		title_screen.hide_me()
+		intro_cutscene.start_intro(func():
+			start_new_game()
+		)
+	else:
+		start_new_game()
 
 func start_new_game() -> void:
 	save_load_manager.start_new_game()

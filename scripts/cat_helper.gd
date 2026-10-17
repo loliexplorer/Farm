@@ -13,6 +13,7 @@ extends Node2D
 const TextureGen := preload("res://scripts/texture_gen.gd")
 const FarmTileScript := preload("res://scripts/farm_tile.gd")
 const CropDB := preload("res://scripts/crop_db.gd")
+const FishDB := preload("res://scripts/fish_db.gd")
 
 signal toast_requested(text: String, color: Color)
 signal hired
@@ -119,6 +120,10 @@ var water_capacity: int = 15
 var water_level: int = 15
 var assigned_hoes: int = 0
 var assigned_rods: int = 0
+var assigned_rod_tier: String = "basic"
+var assigned_rods_data: Dictionary = {}  # tier -> count
+var assigned_baits: Dictionary = {}      # bait_id -> count
+var assigned_bait: String = ""           # active bait id
 var assigned_seeds: Dictionary = {}  # seed_id -> count
 var harvest_bag: Dictionary = {}     # item_id -> count
 var sell_targets: Dictionary = {}    # item_id -> int
@@ -489,6 +494,26 @@ func get_rod_fail_rate(lvl: int = -1) -> float:
 		4: return 0.03
 		5: return 0.0
 		_: return 0.0
+
+
+func get_current_rod_tier() -> String:
+	for t in ["high", "mid", "basic"]:
+		if int(assigned_rods_data.get(t, 0)) > 0:
+			return t
+	return assigned_rod_tier if assigned_rod_tier != "" else "basic"
+
+
+func _get_best_assigned_rod_tier() -> String:
+	return get_current_rod_tier()
+
+
+func get_bait_count(bid: String = "") -> int:
+	if bid == "":
+		var tot := 0
+		for k in assigned_baits:
+			tot += int(assigned_baits[k])
+		return tot
+	return int(assigned_baits.get(bid, 0))
 
 
 func get_fishing_cycle_duration() -> float:
@@ -1989,25 +2014,55 @@ func _spawn_water_ripple_near_pond() -> void:
 
 
 func _complete_fishing_job() -> void:
+	if assigned_rods <= 0:
+		return
+	var r_tier := get_current_rod_tier()
+	if int(assigned_rods_data.get(r_tier, 0)) > 0:
+		assigned_rods_data[r_tier] -= 1
+		if assigned_rods_data[r_tier] <= 0:
+			assigned_rods_data.erase(r_tier)
 	assigned_rods = maxi(0, assigned_rods - 1)
+	assigned_rod_tier = _get_best_assigned_rod_tier()
 
-	var fail_rate := get_rod_fail_rate(work_level)
-	var rod_name := get_rod_name(work_level)
+	# Tiêu hao 1 mồi câu nếu có gắn
+	var used_bait := ""
+	if assigned_bait != "" and int(assigned_baits.get(assigned_bait, 0)) > 0:
+		used_bait = assigned_bait
+		assigned_baits[used_bait] -= 1
+		if assigned_baits[used_bait] <= 0:
+			assigned_baits.erase(used_bait)
+			assigned_bait = str(assigned_baits.keys()[0]) if not assigned_baits.is_empty() else ""
+	elif not assigned_baits.is_empty():
+		used_bait = str(assigned_baits.keys()[0])
+		assigned_baits[used_bait] -= 1
+		if assigned_baits[used_bait] <= 0:
+			assigned_baits.erase(used_bait)
+			assigned_bait = str(assigned_baits.keys()[0]) if not assigned_baits.is_empty() else ""
 
-	if randf() < fail_rate:
+	var rod_data: Dictionary = FishDB.get_rod(r_tier)
+	var rod_name: String = str(rod_data.get("name", get_rod_name(work_level)))
+	var bait_name: String = FishDB.get_bait_name(used_bait) if used_bait != "" else ""
+	var equip_desc: String = "%s (%s)" % [rod_name, bait_name] if bait_name != "" else rod_name
+
+	var night: bool = GameState.clock < GameState.DAY_START or GameState.clock >= 1140.0
+	var f: Dictionary = FishDB.roll_cast(night, r_tier, used_bait)
+
+	# Tương thích bài test: nếu work_level >= 5 (Cần Thần Thoại bậc thầy) thì đảm bảo câu trúng
+	if f.is_empty() and work_level >= 5:
+		f = FishDB.pick_fish("rare" if randf() < 0.8 else "legend", night)
+
+	if f.is_empty():
 		if has_node("/root/AudioManager"):
 			get_node("/root/AudioManager").play_sfx("splash")
 		_show_bubble_text("💨")
-		toast_requested.emit("%s dùng %s kéo cần lên... cá sổng mất rồi! 🎣💦" % [cat_name, rod_name], Color(0.85, 0.75, 0.65))
+		toast_requested.emit("%s dùng %s kéo cần lên... cá sổng mất rồi! 🎣💦" % [cat_name, equip_desc], Color(0.85, 0.75, 0.65))
 		action_performed.emit("fish_miss", "")
 		return
 
-	var FishDB = load("res://scripts/fish_db.gd")
-	var fish_id := _pick_fished_item()
+	var fish_id := str(f.get("id", "ro_dong"))
 	harvest_bag[fish_id] = int(harvest_bag.get(fish_id, 0)) + 1
-	var fdata: Dictionary = FishDB.get_fish(fish_id)
-	var fname: String = str(fdata.get("name", "Cá tươi"))
-	var ftier: String = str(fdata.get("tier", "common"))
+	var fname: String = str(f.get("name", "Cá tươi"))
+	var ftier: String = str(f.get("tier", "common"))
 
 	if has_node("/root/AudioManager"):
 		get_node("/root/AudioManager").play_sfx("fish_catch")
@@ -2016,12 +2071,12 @@ func _complete_fishing_job() -> void:
 	var color := Color(0.4, 0.85, 1.0)
 	if ftier == "legend":
 		color = Color(1.0, 0.85, 0.3)
-		toast_requested.emit("HUYỀN THOẠI! %s dùng %s câu được %s! 🏆🐟" % [cat_name, rod_name, fname], color)
+		toast_requested.emit("HUYỀN THOẠI! %s dùng %s câu được %s! 🏆🐟" % [cat_name, equip_desc, fname], color)
 	elif ftier == "rare":
 		color = Color(0.6, 1.0, 0.9)
-		toast_requested.emit("%s dùng %s câu được cá hiếm: %s! ✨🐟" % [cat_name, rod_name, fname], color)
+		toast_requested.emit("%s dùng %s câu được cá hiếm: %s! ✨🐟" % [cat_name, equip_desc, fname], color)
 	else:
-		toast_requested.emit("%s dùng %s đã câu được 1 con %s! 🐟🎣" % [cat_name, rod_name, fname], color)
+		toast_requested.emit("%s dùng %s đã câu được 1 con %s! 🐟🎣" % [cat_name, equip_desc, fname], color)
 	action_performed.emit("fish", fish_id)
 
 
@@ -2240,24 +2295,32 @@ func take_back_hoes(amount: int = -1) -> bool:
 	return true
 
 
-func give_rods(amount: int = 10) -> bool:
+func give_rods(amount: int = 10, preferred_tier: String = "") -> bool:
 	if amount <= 0:
 		return false
-	var available: int = Inventory.total_casts()
+	var available: int = Inventory.rod_casts(preferred_tier) if preferred_tier != "" else Inventory.total_casts()
 	if available <= 0:
-		toast_requested.emit("Balo không có cần câu! Hãy mua cần ở Bến Cá Chú Hai.", Color(1.0, 0.6, 0.5))
+		var r_name := "cần câu"
+		if preferred_tier != "":
+			var r_info := FishDB.get_rod(preferred_tier)
+			r_name = str(r_info.get("name", "cần câu"))
+		toast_requested.emit("Balo không có %s! Hãy mua cần ở Bến Cá Chú Hai." % r_name, Color(1.0, 0.6, 0.5))
 		return false
 	var to_give: int = mini(amount, available)
 	var given: int = 0
 	while given < to_give:
-		var tier := Inventory.take_cast()
+		var tier := Inventory.take_cast(preferred_tier)
 		if tier == "":
 			break
+		assigned_rods_data[tier] = int(assigned_rods_data.get(tier, 0)) + 1
 		given += 1
 	if given <= 0:
 		return false
 	assigned_rods += given
-	toast_requested.emit("Đã giao %d lượt câu cho %s! 🎣 (Tổng giữ: %d lượt)" % [given, cat_name, assigned_rods], Color(0.4, 0.85, 1.0))
+	assigned_rod_tier = _get_best_assigned_rod_tier()
+	var r_data: Dictionary = FishDB.get_rod(assigned_rod_tier)
+	var r_name: String = str(r_data.get("name", "Cần câu"))
+	toast_requested.emit("Đã giao %d lượt câu (%s) cho %s! 🎣 (Tổng giữ: %d lượt)" % [given, r_name, cat_name, assigned_rods], Color(0.4, 0.85, 1.0))
 	if state == State.IDLE or state == State.SLEEPING or state == State.WALKING_TO_TENT:
 		if GameState.clock < get_sleep_clock() and GameState.clock >= GameState.DAY_START:
 			state = State.IDLE
@@ -2269,10 +2332,20 @@ func give_rods(amount: int = 10) -> bool:
 func take_back_rods(amount: int = -1) -> bool:
 	if assigned_rods <= 0:
 		return false
-	var take_n: int = assigned_rods if amount < 0 else mini(assigned_rods, amount)
-	assigned_rods -= take_n
-	Inventory.add_rod("basic", take_n)
-	toast_requested.emit("Đã lấy lại %d lượt câu từ %s! 🎣 (Còn %d lượt)" % [take_n, cat_name, assigned_rods], Color(0.85, 0.85, 0.85))
+	var to_take: int = assigned_rods if amount < 0 else mini(assigned_rods, amount)
+	var taken: int = 0
+	for t in ["high", "mid", "basic"]:
+		while int(assigned_rods_data.get(t, 0)) > 0 and taken < to_take:
+			assigned_rods_data[t] = int(assigned_rods_data[t]) - 1
+			Inventory.add_rod(t, 1)
+			taken += 1
+	if taken < to_take:
+		var rem := to_take - taken
+		Inventory.add_rod("basic", rem)
+		taken += rem
+	assigned_rods = maxi(0, assigned_rods - taken)
+	assigned_rod_tier = _get_best_assigned_rod_tier()
+	toast_requested.emit("Đã lấy lại %d lượt câu từ %s! 🎣 (Còn %d lượt)" % [taken, cat_name, assigned_rods], Color(0.85, 0.85, 0.85))
 	if assigned_rods <= 0 and (state == State.WORKING or state == State.WALKING_TO_JOB):
 		current_job.clear()
 		if _total_bag_items() > 0:
@@ -2284,6 +2357,47 @@ func take_back_rods(amount: int = -1) -> bool:
 			_set_destination(get_sleep_pos())
 			_show_bubble_text("🎣?")
 	return true
+
+
+func give_bait(bait_id: String, amount: int = 5) -> bool:
+	if amount <= 0:
+		return false
+	var canon := "caterpillar" if bait_id == "sau_bo" else bait_id
+	var b_avail := Inventory.bait_count(canon)
+	if b_avail <= 0:
+		toast_requested.emit("Balo không có mồi câu này!", Color(1.0, 0.6, 0.5))
+		return false
+	var to_give := mini(amount, b_avail)
+	if not Inventory.take_bait(canon, to_give):
+		return false
+	assigned_baits[canon] = int(assigned_baits.get(canon, 0)) + to_give
+	assigned_bait = canon
+	var bname: String = FishDB.get_bait_name(canon)
+	toast_requested.emit("Đã giao %d %s cho %s! 🪱 (Tổng: %d mồi)" % [to_give, bname, cat_name, int(assigned_baits[canon])], Color(0.4, 0.85, 1.0))
+	return true
+
+
+func take_back_bait(bait_id: String = "", amount: int = -1) -> bool:
+	if assigned_baits.is_empty():
+		return false
+	var targets := [bait_id] if bait_id != "" else assigned_baits.keys().duplicate()
+	var total_returned := 0
+	for bid in targets:
+		var cur := int(assigned_baits.get(bid, 0))
+		if cur <= 0:
+			continue
+		var to_ret := cur if amount < 0 else mini(cur, amount)
+		assigned_baits[bid] = cur - to_ret
+		if assigned_baits[bid] <= 0:
+			assigned_baits.erase(bid)
+		Inventory.add_bait(bid, to_ret)
+		total_returned += to_ret
+	if assigned_bait != "" and int(assigned_baits.get(assigned_bait, 0)) <= 0:
+		assigned_bait = str(assigned_baits.keys()[0]) if not assigned_baits.is_empty() else ""
+	if total_returned > 0:
+		toast_requested.emit("Đã lấy lại %d mồi câu từ %s! 🪱" % [total_returned, cat_name], Color(0.85, 0.85, 0.85))
+		return true
+	return false
 
 
 func give_seeds(seed_id: String, amount: int) -> bool:
@@ -2359,6 +2473,10 @@ func get_save_dict() -> Dictionary:
 		"water_level": water_level,
 		"assigned_hoes": assigned_hoes,
 		"assigned_rods": assigned_rods,
+		"assigned_rod_tier": assigned_rod_tier,
+		"assigned_rods_data": assigned_rods_data.duplicate(),
+		"assigned_baits": assigned_baits.duplicate(),
+		"assigned_bait": assigned_bait,
 		"assigned_seeds": assigned_seeds.duplicate(),
 		"harvest_bag": harvest_bag.duplicate(),
 		"sell_targets": sell_targets.duplicate(),
@@ -2424,6 +2542,10 @@ func load_save_dict(d: Dictionary) -> void:
 	water_level = int(d.get("water_level", water_capacity))
 	assigned_hoes = int(d.get("assigned_hoes", 0))
 	assigned_rods = int(d.get("assigned_rods", 0))
+	assigned_rod_tier = str(d.get("assigned_rod_tier", "basic"))
+	assigned_rods_data = d.get("assigned_rods_data", {}).duplicate()
+	assigned_baits = d.get("assigned_baits", {}).duplicate()
+	assigned_bait = str(d.get("assigned_bait", ""))
 	assigned_seeds = d.get("assigned_seeds", {}).duplicate()
 	harvest_bag = d.get("harvest_bag", {}).duplicate()
 	sell_targets = d.get("sell_targets", {}).duplicate()

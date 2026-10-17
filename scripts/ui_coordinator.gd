@@ -18,6 +18,7 @@ const CatPanelScript := preload("res://scripts/ui/cat_panel.gd")
 const QuestPanelScript := preload("res://scripts/ui/quest_panel.gd")
 const ToolUpgradePanelScript := preload("res://scripts/ui/tool_upgrade_panel.gd")
 const SettingsPanelScript := preload("res://scripts/ui/settings_panel.gd")
+const IntroCutsceneScript := preload("res://scripts/ui/intro_cutscene.gd")
 
 var main: Node2D
 
@@ -38,6 +39,7 @@ var touch_ui: CanvasLayer
 var tool_upgrade_panel: CanvasLayer
 var quest_panel: CanvasLayer
 var settings_panel: CanvasLayer
+var intro_cutscene: CanvasLayer
 var fade_rect: ColorRect
 
 
@@ -111,6 +113,9 @@ func build_ui() -> void:
 	title_screen = TitleScreenScript.new()
 	main.add_child(title_screen)
 
+	intro_cutscene = IntroCutsceneScript.new()
+	main.add_child(intro_cutscene)
+
 	minimap = MinimapScript.new()
 	main.add_child(minimap)
 	minimap.setup(main.ground.texture, main.player, main.world, main)
@@ -157,7 +162,7 @@ func connect_ui_signals() -> void:
 	dialog_box.finished.connect(main._on_dialog_finished)
 	dialog_box.answered.connect(main._on_sleep_answer)
 
-	title_screen.start_requested.connect(main.start_new_game)
+	title_screen.start_requested.connect(main.on_title_start_requested)
 	title_screen.continue_requested.connect(main.continue_game)
 
 	pause_menu.resumed.connect(resume_from_pause)
