@@ -166,6 +166,10 @@ static func get_tex(key: String) -> ImageTexture:
 			tex = _junimo_hut()
 		"caterpillar":
 			tex = _caterpillar()
+		"worm":
+			tex = _worm_icon()
+		"paste":
+			tex = _paste_icon()
 		"fx_pest":
 			tex = _fx_pest()
 		"mailbox":
@@ -1315,6 +1319,68 @@ static func _caterpillar() -> ImageTexture:
 
 static func _fx_pest() -> ImageTexture:
 	return _caterpillar()
+
+
+static func _worm_icon() -> ImageTexture:
+	var img := _img(16, 16)
+	var worm_dark := Color(0.55, 0.22, 0.20)
+	var worm_body := Color(0.88, 0.45, 0.42)
+	var worm_light := Color(0.98, 0.65, 0.62)
+	var worm_band := Color(0.95, 0.55, 0.50)
+
+	# Thân trùn quế uốn lượn hình chữ S
+	circle(img, 3.5, 11.5, 1.8, worm_dark)
+	circle(img, 3.5, 11.5, 1.2, worm_body)
+
+	circle(img, 6.0, 11.0, 2.0, worm_dark)
+	circle(img, 6.0, 11.0, 1.4, worm_body)
+	px(img, 6, 10, worm_light)
+
+	# Đai sinh dục (clitellum) phình to
+	circle(img, 8.5, 9.0, 2.5, worm_dark)
+	circle(img, 8.5, 9.0, 1.8, worm_band)
+	px(img, 8, 8, worm_light)
+
+	circle(img, 10.5, 7.0, 2.0, worm_dark)
+	circle(img, 10.5, 7.0, 1.4, worm_body)
+	px(img, 10, 6, worm_light)
+
+	# Đầu giun
+	circle(img, 12.5, 5.0, 1.9, worm_dark)
+	circle(img, 12.5, 5.0, 1.3, worm_body)
+	px(img, 12, 4, worm_light)
+	px(img, 13, 5, worm_dark)
+	return _tex(img)
+
+
+static func _paste_icon() -> ImageTexture:
+	var img := _img(16, 16)
+	var dark_edge := Color(0.48, 0.30, 0.12)
+	var paste_base := Color(0.85, 0.60, 0.24)
+	var paste_light := Color(0.96, 0.78, 0.40)
+	var paste_glow := Color(1.0, 0.90, 0.60)
+	var aroma := Color(0.95, 0.85, 0.65, 0.75)
+
+	# Hạt thính cám thơm dạng viên tròn béo ngậy
+	circle(img, 8.0, 9.5, 5.5, dark_edge)
+	circle(img, 8.0, 9.5, 4.5, paste_base)
+	circle(img, 6.5, 8.0, 2.5, paste_light)
+	px(img, 6, 7, paste_glow)
+	px(img, 7, 7, paste_glow)
+
+	# Đốm cám ngũ cốc thơm
+	px(img, 9, 10, dark_edge)
+	px(img, 6, 11, dark_edge)
+	px(img, 10, 8, dark_edge)
+
+	# Làn khói hương thơm ngào ngạt bốc lên
+	px(img, 5, 3, aroma)
+	px(img, 6, 2, aroma)
+	px(img, 7, 3, aroma)
+	px(img, 10, 3, aroma)
+	px(img, 11, 2, aroma)
+	px(img, 12, 3, aroma)
+	return _tex(img)
 
 
 static func _mailbox() -> ImageTexture:

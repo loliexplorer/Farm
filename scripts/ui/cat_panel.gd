@@ -1000,9 +1000,16 @@ func _refresh_manage_data() -> void:
 	elif is_fisher:
 		var fish_count: int = cat._total_bag_items() if cat.has_method("_total_bag_items") else 0
 		var r_count: int = int(cat.get("assigned_rods"))
-		var r_str: String = "Cần câu: %d lượt 🎣" % r_count if r_count > 0 else "Cần câu: Chưa có ❌"
-		_water_label.text = "%s | Giỏ cá: %d/%d 🎒 | Lương: %d xu/ngày | Hôm nay: %s" % [
-			r_str, fish_count, cat.get_max_bag(), cat.daily_wage, "Đã trả 💰" if cat.wage_paid_today else "Chờ lúc 19:00"
+		var r_str: String = "Cần: %d lượt 🎣" % r_count if r_count > 0 else "Cần: Chưa có ❌"
+		var b_count: int = cat.get_bait_count() if cat.has_method("get_bait_count") else 0
+		var b_str: String = ""
+		if b_count > 0:
+			var FishDB = load("res://scripts/fish_db.gd")
+			b_str = " | Mồi: %s (×%d) 🪱" % [FishDB.get_bait_name(str(cat.get("assigned_bait"))), b_count]
+		else:
+			b_str = " | Mồi: Chưa có"
+		_water_label.text = "%s%s | Giỏ: %d/%d 🎒 | Lương: %d xu/ngày | Hôm nay: %s" % [
+			r_str, b_str, fish_count, cat.get_max_bag(), cat.daily_wage, "Đã trả 💰" if cat.wage_paid_today else "Chờ lúc 19:00"
 		]
 	elif is_miner:
 		var ore_count: int = cat._total_bag_items() if cat.has_method("_total_bag_items") else 0
@@ -1078,12 +1085,36 @@ func _refresh_manage_data() -> void:
 		child.queue_free()
 
 	if is_fisher:
-		if cat.harvest_bag.is_empty():
+		var FishDB = load("res://scripts/fish_db.gd")
+		var cat_baits: Dictionary = cat.get("assigned_baits") if cat.get("assigned_baits") != null else {}
+		for bid in cat_baits:
+			var b_amt: int = int(cat_baits[bid])
+			if b_amt <= 0:
+				continue
+			var b_row := HBoxContainer.new()
+			b_row.add_theme_constant_override("separation", 6)
+			var b_ic := TextureRect.new()
+			b_ic.texture = TextureGen.get_tex(bid)
+			b_ic.custom_minimum_size = Vector2(20, 20)
+			b_ic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			b_row.add_child(b_ic)
+
+			var b_name: String = FishDB.get_bait_name(bid)
+			var b_lbl := UIKit.label(b_row, "Mồi đang giữ: %s ×%d" % [b_name, b_amt], 12, Color(1.0, 0.85, 0.45))
+			b_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+			var take_b_btn := UIKit.styled_button(b_row, "Lấy lại mồi", 11, "neutral")
+			take_b_btn.pressed.connect(func():
+				cat.take_back_bait(bid)
+				_refresh_manage_data()
+			)
+			_seeds_in_cat_box.add_child(b_row)
+
+		if cat.harvest_bag.is_empty() and cat_baits.is_empty():
 			var empty_txt := "(Mèo chưa có cần câu. Hãy giao cần câu bên trên để mèo đi câu)" if int(cat.get("assigned_rods")) <= 0 else "(Giỏ cá trống. Mèo đang câu cá bên bờ ao — còn %d lượt)" % int(cat.get("assigned_rods"))
 			var empty_lbl := UIKit.label(_seeds_in_cat_box, empty_txt, 11, Color(0.6, 0.55, 0.5))
 			empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		else:
-			var FishDB = load("res://scripts/fish_db.gd")
 			for fid in cat.harvest_bag:
 				var count: int = int(cat.harvest_bag[fid])
 				if count <= 0:
@@ -1189,13 +1220,45 @@ func _refresh_manage_data() -> void:
 			ic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 			row.add_child(ic)
 
-			var tier_name := "Cần Tre" if tier == "basic" else ("Cần Sợi Thủy Tinh" if tier == "mid" else "Cần Iridium")
+			var r_data: Dictionary = FishDB.get_rod(tier)
+			var tier_name := str(r_data.get("name", "Cần câu"))
+			ic.texture = TextureGen.rod_icon(str(r_data.get("color", "9aa0a6")))
 			var lbl := UIKit.label(row, "%s: %d lượt câu" % [tier_name, casts], 12, Color(0.4, 0.85, 1.0))
 			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 			var give_btn := UIKit.styled_button(row, "Giao cần", 11, "gold")
 			give_btn.pressed.connect(func():
-				cat.give_rods(casts)
+				cat.give_rods(casts, tier)
+				_refresh_manage_data()
+			)
+			_seeds_in_bag_box.add_child(row)
+
+		# 2. Liệt kê mồi câu trong balo để người chơi tiện giao cho mèo
+		for bid in ["worm", "caterpillar", "paste"]:
+			var b_count: int = Inventory.bait_count(bid)
+			if b_count <= 0:
+				continue
+			has_any = true
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			var ic := TextureRect.new()
+			ic.texture = TextureGen.get_tex(bid)
+			ic.custom_minimum_size = Vector2(20, 20)
+			ic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			row.add_child(ic)
+
+			var b_name: String = FishDB.get_bait_name(bid)
+			var lbl := UIKit.label(row, "%s: %d mồi" % [b_name, b_count], 12, Color(1.0, 0.85, 0.45))
+			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+			var give_5_btn := UIKit.styled_button(row, "Giao 5", 11, "buy")
+			give_5_btn.pressed.connect(func():
+				cat.give_bait(bid, 5)
+				_refresh_manage_data()
+			)
+			var give_all_btn := UIKit.styled_button(row, "Giao hết", 11, "gold")
+			give_all_btn.pressed.connect(func():
+				cat.give_bait(bid, b_count)
 				_refresh_manage_data()
 			)
 			_seeds_in_bag_box.add_child(row)

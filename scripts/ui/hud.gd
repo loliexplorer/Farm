@@ -7,6 +7,7 @@ const TextureGen := preload("res://scripts/texture_gen.gd")
 const UIKit := preload("res://scripts/ui/ui_kit.gd")
 const WeatherManager := preload("res://scripts/weather_manager.gd")
 const QuestDrawerScript := preload("res://scripts/ui/quest_drawer.gd")
+const FishDB := preload("res://scripts/fish_db.gd")
 
 signal open_inventory_requested
 signal open_storage_requested
@@ -619,12 +620,26 @@ func _update_active_label() -> void:
 			active_label.text = "💧 Bình tưới (%d/%d - Tốn 5⚡)" % [Inventory.water_level, Inventory.water_max]
 			active_label.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
 		"rod":
-			if Inventory.total_casts() <= 0:
+			var tier: String = str(Inventory.active_item.get("tier", "basic"))
+			var c: int = Inventory.rod_casts(tier)
+			if c <= 0 and Inventory.total_casts() <= 0:
 				Inventory.active_item = Inventory.get_fallback_tool()
 				_update_active_label()
 				return
-			active_label.text = "🎣 Cần câu (%d lượt - Tốn 15⚡)" % Inventory.total_casts()
+			var r_info := FishDB.get_rod(tier)
+			var r_name: String = str(r_info.get("name", "Cần câu"))
+			var bait_info: String = ""
+			if Inventory.attached_bait != "":
+				var bname: String = FishDB.get_bait_name(Inventory.attached_bait)
+				var bcnt: int = Inventory.bait_count(Inventory.attached_bait)
+				bait_info = " [Mồi: %s ×%d]" % [bname, bcnt]
+			active_label.text = "🎣 %s%s (%d lượt - Tốn 15⚡)" % [r_name, bait_info, c if c > 0 else Inventory.total_casts()]
 			active_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
+		"bait":
+			var bid: String = str(Inventory.active_item.get("id", ""))
+			var bname: String = FishDB.get_bait_name(bid)
+			active_label.text = "🪱 %s (×%d) · Bấm I để mở balo gắn vào cần câu" % [bname, Inventory.bait_count(bid)]
+			active_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
 		"pickaxe":
 			var p_info := OreDB.get_pickaxe(Inventory.get_pickaxe_tier())
 			active_label.text = "⛏️ %s (Cấp %d - Tốn %.0f⚡)" % [str(p_info.name), Inventory.get_pickaxe_power(), float(p_info.stamina)]

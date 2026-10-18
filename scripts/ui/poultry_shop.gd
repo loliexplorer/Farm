@@ -621,9 +621,12 @@ func _build_coop_card(coop: Dictionary) -> Control:
 			"🏡 Hiện tại: %s" % ("Chưa mua" if tier == 0 else "Cấp %d (Sức chứa %d con)" % [tier, Inventory.coop_capacity(cid)]),
 			"🐾 Số vật nuôi đang ở: %d con" % count
 		]
-		if tier < 4:
+		if tier == 0:
+			var t1_cost: int = int(coop.tier1_price)
+			desc_lines.append("▲ Mua Cấp 1: %d xu (Chứa %d con)" % [t1_cost, PoultryDB.get_coop_capacity(cid, 1)])
+		elif tier < 4:
 			var next_t := tier + 1
-			var up_cost: int = int(coop.tier1_price) if tier == 0 else PoultryDB.get_coop_upgrade_price(cid, next_t)
+			var up_cost := PoultryDB.get_coop_upgrade_price(cid, next_t)
 			desc_lines.append("▲ Lên Cấp %d: %d xu (Chứa %d con)" % [next_t, up_cost, PoultryDB.get_coop_capacity(cid, next_t)])
 		else:
 			desc_lines.append("✔ Đã đạt cấp tối đa (16 con)")
@@ -952,6 +955,7 @@ func _buy_animal(aid: String) -> void:
 		if has_node("/root/AudioManager"):
 			get_node("/root/AudioManager").play_sfx("coin")
 		Inventory.add_animal(aid)
+		_hide_info_modal()
 		feedback.emit("Đã mua 1 %s (-%d xu)! Hãy ra chuồng chăm sóc." % [a.name, price])
 		refresh()
 	else:
@@ -965,7 +969,8 @@ func _buy_coop(cid: String) -> void:
 		if has_node("/root/AudioManager"):
 			get_node("/root/AudioManager").play_sfx("coin")
 		Inventory.set_coop_tier(cid, 1)
-		feedback.emit("Đã dựng %s Cấp 1 (-%d xu) thành công! 🏡" % [cdata.name, price])
+		_hide_info_modal()
+		feedback.emit("Đã dựng %s Cấp 1 (-%d xu) thành công! 🏡 Hãy ra khu nuôi để xem." % [cdata.name, price])
 		refresh()
 	else:
 		feedback.emit("Không đủ xu để mua %s (cần %d xu)!" % [cdata.name, price])
@@ -979,7 +984,8 @@ func _upgrade_coop(cid: String) -> void:
 		if has_node("/root/AudioManager"):
 			get_node("/root/AudioManager").play_sfx("coin")
 		Inventory.set_coop_tier(cid, next_tier)
-		feedback.emit("Đã nâng cấp %s lên Cấp %d (-%d xu) (Sức chứa %d con)!" % [PoultryDB.get_coop_data(cid).name, next_tier, price, PoultryDB.get_coop_capacity(cid, next_tier)])
+		_hide_info_modal()
+		feedback.emit("Đã nâng cấp %s lên Cấp %d (-%d xu) (Sức chứa %d con)! 🏡" % [PoultryDB.get_coop_data(cid).name, next_tier, price, PoultryDB.get_coop_capacity(cid, next_tier)])
 		refresh()
 	else:
 		feedback.emit("Không đủ xu để nâng cấp (cần %d xu)!" % price)

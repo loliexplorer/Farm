@@ -65,6 +65,7 @@ func build_pen(parent: Node2D) -> Node2D:
 	pen_node = Node2D.new()
 	pen_node.name = "Pen"
 	pen_node.position = Vector2.ZERO
+	pen_node.y_sort_enabled = true
 	parent.add_child(pen_node)
 	rebuild_pen()
 	return pen_node
@@ -76,6 +77,7 @@ func rebuild_pen() -> void:
 	active_pen_animals.clear()
 	pen_bubbles.clear()
 	for c in pen_node.get_children():
+		pen_node.remove_child(c)
 		c.queue_free()
 
 	var fh := TextureGen.get_tex("fence_h")
@@ -103,7 +105,7 @@ func rebuild_pen() -> void:
 		var bedding := Sprite2D.new()
 		bedding.texture = TextureGen.get_tex("pen_dirt_bedding" if tier == 0 else "pen_bedding")
 		bedding.position = Vector2(rx + rw / 2.0, ry + rh / 2.0)
-		bedding.z_index = -1
+		bedding.z_index = 0
 		pen_node.add_child(bedding)
 
 		# 2. Hàng rào gỗ ngoại vi bao quanh chuồng & Cổng chuồng
@@ -172,6 +174,18 @@ func rebuild_pen() -> void:
 			bldg_spr.scale = b_scale
 			bldg_body.add_child(bldg_spr)
 
+			# Nhãn huy hiệu hiển thị cấp chuồng rõ ràng trên nóc
+			var badge_lbl := Label.new()
+			badge_lbl.text = "🏡 %s (Cấp %d)" % [str(pcfg.name), tier]
+			badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			badge_lbl.position = Vector2(-60, -48)
+			badge_lbl.custom_minimum_size = Vector2(120, 20)
+			badge_lbl.add_theme_font_size_override("font_size", 10)
+			badge_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+			badge_lbl.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.03, 0.95))
+			badge_lbl.add_theme_constant_override("outline_size", 2)
+			bldg_body.add_child(badge_lbl)
+
 			var bcol := CollisionShape2D.new()
 			var bshape := RectangleShape2D.new()
 			bshape.size = Vector2(56 * b_scale.x / 0.65, 30 * b_scale.y / 0.65)
@@ -195,6 +209,34 @@ func rebuild_pen() -> void:
 				_add_sprite(TextureGen.get_tex("hay_bale"), Vector2(rx + 224, trough_y - 20 if gate_axis == "south" else trough_y + 20), pen_node)
 			if tier >= 4:
 				_add_sprite(TextureGen.get_tex("hay_bale"), Vector2(rx + 252, trough_y - 20 if gate_axis == "south" else trough_y + 20), pen_node)
+		else:
+			# Chuồng chưa mua: hiển thị cọc biển báo khu đất chờ xây dựng
+			var sign_body := StaticBody2D.new()
+			var bpos: Vector2 = pcfg.bldg_pos
+			sign_body.position = bpos
+			var sign_spr := Sprite2D.new()
+			sign_spr.texture = TextureGen.get_tex("mine_sign")
+			sign_spr.scale = Vector2(1.1, 1.1)
+			sign_body.add_child(sign_spr)
+
+			var sign_lbl := Label.new()
+			sign_lbl.text = "%s\n(Chưa dựng)" % str(pcfg.name)
+			sign_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sign_lbl.position = Vector2(-45, -34)
+			sign_lbl.custom_minimum_size = Vector2(90, 24)
+			sign_lbl.add_theme_font_size_override("font_size", 9)
+			sign_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.70))
+			sign_lbl.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.04, 0.95))
+			sign_lbl.add_theme_constant_override("outline_size", 2)
+			sign_body.add_child(sign_lbl)
+
+			var scol := CollisionShape2D.new()
+			var sshape := RectangleShape2D.new()
+			sshape.size = Vector2(24, 16)
+			scol.shape = sshape
+			scol.position = Vector2(0, 4)
+			sign_body.add_child(scol)
+			pen_node.add_child(sign_body)
 
 		# 4. Các con vật thuộc loài này di chuyển và ăn trong chuồng
 		var species_animals: Array = []

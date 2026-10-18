@@ -84,6 +84,7 @@ func build_world() -> Node2D:
 
 	ground = Sprite2D.new()
 	ground.centered = false
+	ground.z_index = -10
 	var farm_px := Rect2(824, 288, 448, 368)
 	ground.texture = TextureGen.make_ground(int(WORLD_SIZE.x), int(WORLD_SIZE.y), farm_px, PATHS, POND_RECT, [PATH_COBBLE_V, PATH_COBBLE_H])
 	world.add_child(ground)

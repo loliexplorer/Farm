@@ -648,16 +648,27 @@ func _render_details() -> void:
 	else:
 		detail_qty_label.text = ""
 
-	# Dòng chỉ số tối giản: ví dụ "+55 ⚡"
+	# Dòng chỉ số tối giản: ví dụ "+55 ⚡" hoặc trạng thái mồi
 	var stat_text := ""
 	if s_type in ["produce", "fish"]:
 		var food_cat := "fish" if s_type == "fish" else ("poultry" if not PoultryDB.get_animal(s_id).is_empty() else "crop")
 		var food_val := GameState.get_food_stamina(food_cat, s_id)
 		if food_val > 0:
 			stat_text = "+%d ⚡" % food_val
+	elif s_type == "rod":
+		if Inventory.attached_bait != "":
+			var b_name := FishDB.get_bait_name(Inventory.attached_bait)
+			var b_cnt := Inventory.bait_count(Inventory.attached_bait)
+			stat_text = "🪱 Mồi: %s (×%d)" % [b_name, b_cnt]
+		else:
+			stat_text = "Chưa gắn mồi câu"
+	elif s_type == "bait" or (s_type == "produce" and s_id == "sau_bo"):
+		var bid := "caterpillar" if s_id == "sau_bo" else s_id
+		var bdata := FishDB.get_bait(bid)
+		stat_text = str(bdata.get("desc", "Mồi câu"))
 	detail_desc_label.text = stat_text
 
-	# Nút hành động tối giản đúng chữ: "Lấy ra", "Cất", "Ăn"
+	# Nút hành động tối giản đúng chữ: "Lấy ra", "Cất", "Ăn", "Gắn mồi", "Tháo mồi"
 	if not is_hb:
 		var take_btn := UIKit.styled_button(actions_container, "Lấy ra", 14, "buy")
 		take_btn.custom_minimum_size = Vector2(0, 34)
@@ -674,6 +685,52 @@ func _render_details() -> void:
 			var eat_btn := UIKit.styled_button(actions_container, "Ăn", 14, "primary")
 			eat_btn.custom_minimum_size = Vector2(0, 32)
 			eat_btn.pressed.connect(_on_action_eat.bind(food_cat, s_id))
+
+	# Gắn mồi / Tháo mồi khi kiểm tra Cần câu
+	if s_type == "rod":
+		if Inventory.attached_bait != "":
+			var detach_btn := UIKit.styled_button(actions_container, "Tháo mồi", 13, "neutral")
+			detach_btn.custom_minimum_size = Vector2(0, 30)
+			detach_btn.pressed.connect(func():
+				Inventory.detach_bait()
+				refresh()
+				feedback.emit("Đã tháo mồi câu khỏi cần!", Color(0.85, 0.85, 0.85))
+			)
+		var available_baits := ["worm", "caterpillar", "paste"]
+		var has_any_bait := false
+		for bid in available_baits:
+			var b_cnt: int = Inventory.bait_count(bid)
+			if b_cnt > 0:
+				has_any_bait = true
+				var b_name: String = FishDB.get_bait_name(bid)
+				var is_current: bool = (Inventory.attached_bait == bid)
+				var btn_txt := "Đang gắn: %s" % b_name if is_current else "Gắn %s (%d)" % [b_name, b_cnt]
+				var att_btn := UIKit.styled_button(actions_container, btn_txt, 12, "buy" if is_current else "gold")
+				att_btn.custom_minimum_size = Vector2(0, 30)
+				att_btn.disabled = is_current
+				att_btn.pressed.connect(func():
+					Inventory.attach_bait(bid)
+					refresh()
+					feedback.emit("Đã gắn %s vào cần câu! 🎣🪱" % b_name, Color(0.4, 0.9, 1.0))
+				)
+		if not has_any_bait and Inventory.attached_bait == "":
+			var no_b_lbl := UIKit.label(actions_container, "Chưa có mồi trong balo\n(Mua ở Chú Hai)", 11, Color(0.7, 0.65, 0.6))
+			no_b_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	# Gắn vào cần câu khi kiểm tra Mồi câu
+	if s_type == "bait" or (s_type == "produce" and s_id == "sau_bo"):
+		var canon_b: String = "caterpillar" if s_id == "sau_bo" else s_id
+		var b_name: String = FishDB.get_bait_name(canon_b)
+		var is_current: bool = (Inventory.attached_bait == canon_b)
+		var btn_text := "Đang gắn trên cần câu ✓" if is_current else "Gắn vào cần câu 🎣"
+		var att_b_btn := UIKit.styled_button(actions_container, btn_text, 13, "buy" if is_current else "gold")
+		att_b_btn.custom_minimum_size = Vector2(0, 32)
+		att_b_btn.disabled = is_current
+		att_b_btn.pressed.connect(func():
+			Inventory.attach_bait(canon_b)
+			refresh()
+			feedback.emit("Đã gắn %s vào cần câu! 🎣🪱" % b_name, Color(0.4, 0.9, 1.0))
+		)
 
 
 # Xử lý nút "Lấy ra": tự fill vào thanh công cụ khi còn trống, nếu full r thì thay thế

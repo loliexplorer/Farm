@@ -251,5 +251,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			start_requested.emit()
 
 
+func show_me() -> void:
+	visible = true
+
+
 func hide_me() -> void:
 	visible = false

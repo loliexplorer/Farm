@@ -27,6 +27,8 @@ var pickaxe := ""  # "basic", "copper", "iron", "gold", "" = chưa có
 var ores: Dictionary = {}  # ore_id -> số lượng
 var active_item: Dictionary = {"type": "hoe"}
 var rods: Dictionary = {}  # tier -> số lượt câu còn lại
+var baits: Dictionary = {} # bait_id -> số lượng mồi câu
+var attached_bait: String = "" # Mồi đang gắn trên cần câu ("worm", "caterpillar", "paste", "" = chưa gắn)
 var fish: Dictionary = {}  # fish_id -> số lượng
 var coops: Dictionary = {"small": 0, "large": 0}  # legacy
 var coop_tiers: Dictionary = {"chicken": 0, "cow": 0, "pig": 0, "sheep": 0}  # Cấp chuồng: 0=chưa mua, 1=cấp 1 (chứa 2), 2=cấp 2 (chứa 4), 3=cấp 3 (chứa 8), 4=cấp 4 (chứa 16)
@@ -67,6 +69,8 @@ func reset() -> void:
 	ores = {}
 	active_item = {"type": "hoe"}
 	rods = {}
+	baits = {}
+	attached_bait = ""
 	fish = {}
 	feed = 0
 	coops = {"small": 0, "large": 0}
@@ -125,18 +129,35 @@ func _add_item_to_slots(type: String, id: String, qty: int, extra: Dictionary = 
 	_ensure_slots_valid()
 	# 1. Thử cộng dồn vào ô đã có sẵn
 	for s in hotbar_slots:
-		if not s.is_empty() and str(s.get("type", "")) == type and str(s.get("id", "")) == id:
-			s["qty"] = int(s.get("qty", 0)) + qty
-			return
+		if not s.is_empty() and str(s.get("type", "")) == type:
+			var s_id: String = str(s.get("id", ""))
+			var s_tier: String = str(s.get("tier", ""))
+			var matches: bool = (s_id == id) or (type == "rod" and (s_tier == id or (s_id == "" and s_tier == "" and id == "basic")))
+			if matches:
+				s["qty"] = int(s.get("qty", 0)) + qty
+				if type == "rod":
+					s["id"] = id
+					s["tier"] = id
+				return
 	for s in backpack_slots:
-		if not s.is_empty() and str(s.get("type", "")) == type and str(s.get("id", "")) == id:
-			s["qty"] = int(s.get("qty", 0)) + qty
-			return
+		if not s.is_empty() and str(s.get("type", "")) == type:
+			var s_id: String = str(s.get("id", ""))
+			var s_tier: String = str(s.get("tier", ""))
+			var matches: bool = (s_id == id) or (type == "rod" and (s_tier == id or (s_id == "" and s_tier == "" and id == "basic")))
+			if matches:
+				s["qty"] = int(s.get("qty", 0)) + qty
+				if type == "rod":
+					s["id"] = id
+					s["tier"] = id
+				return
 
 	# 2. Đặt vào ô trống đầu tiên (ưu tiên hotbar trước, rồi tới balo)
 	var new_item: Dictionary = {"type": type, "id": id, "qty": qty}
 	for k in extra:
 		new_item[k] = extra[k]
+	if type == "rod":
+		new_item["tier"] = id
+		new_item["id"] = id
 
 	for i in hotbar_slots.size():
 		if hotbar_slots[i].is_empty():
@@ -154,7 +175,13 @@ func _take_item_from_slots(type: String, id: String, qty: int) -> int:
 	# Ưu tiên trừ từ ô đang cầm trên hotbar nếu khớp
 	if active_hotbar_index >= 0 and active_hotbar_index < hotbar_slots.size():
 		var act_s: Dictionary = hotbar_slots[active_hotbar_index]
-		if not act_s.is_empty() and str(act_s.get("type", "")) == type and (id == "" or str(act_s.get("id", "")) == id):
+		var act_match: bool = false
+		if not act_s.is_empty() and str(act_s.get("type", "")) == type:
+			if id == "":
+				act_match = true
+			elif str(act_s.get("id", "")) == id or (type == "rod" and str(act_s.get("tier", "")) == id):
+				act_match = true
+		if act_match:
 			var have: int = int(act_s.get("qty", 0))
 			if have <= needed:
 				needed -= have
@@ -166,7 +193,13 @@ func _take_item_from_slots(type: String, id: String, qty: int) -> int:
 	if needed > 0:
 		for i in hotbar_slots.size():
 			var s: Dictionary = hotbar_slots[i]
-			if not s.is_empty() and str(s.get("type", "")) == type and (id == "" or str(s.get("id", "")) == id):
+			var s_match: bool = false
+			if not s.is_empty() and str(s.get("type", "")) == type:
+				if id == "":
+					s_match = true
+				elif str(s.get("id", "")) == id or (type == "rod" and str(s.get("tier", "")) == id):
+					s_match = true
+			if s_match:
 				var have: int = int(s.get("qty", 0))
 				if have <= needed:
 					needed -= have
@@ -180,7 +213,13 @@ func _take_item_from_slots(type: String, id: String, qty: int) -> int:
 	if needed > 0:
 		for i in backpack_slots.size():
 			var s: Dictionary = backpack_slots[i]
-			if not s.is_empty() and str(s.get("type", "")) == type and (id == "" or str(s.get("id", "")) == id):
+			var s_match: bool = false
+			if not s.is_empty() and str(s.get("type", "")) == type:
+				if id == "":
+					s_match = true
+				elif str(s.get("id", "")) == id or (type == "rod" and str(s.get("tier", "")) == id):
+					s_match = true
+			if s_match:
 				var have: int = int(s.get("qty", 0))
 				if have <= needed:
 					needed -= have
@@ -209,11 +248,11 @@ func _update_tool_slot_qty(type: String, qty: int) -> void:
 func _has_item_in_slots(type: String, id: String) -> bool:
 	for s in hotbar_slots:
 		if not s.is_empty() and str(s.get("type", "")) == type:
-			if id == "" or str(s.get("id", "")) == id:
+			if id == "" or str(s.get("id", "")) == id or (type == "rod" and str(s.get("tier", "")) == id):
 				return true
 	for s in backpack_slots:
 		if not s.is_empty() and str(s.get("type", "")) == type:
-			if id == "" or str(s.get("id", "")) == id:
+			if id == "" or str(s.get("id", "")) == id or (type == "rod" and str(s.get("tier", "")) == id):
 				return true
 	return false
 
@@ -241,11 +280,20 @@ func _sync_single_slot(slots_list: Array, idx: int) -> void:
 				s["qty"] = get_pickaxe_power()
 				s["tier"] = get_pickaxe_tier()
 		"rod":
-			var c: int = rod_casts(str(s.get("tier", "basic")))
-			if c <= 0 and total_casts() <= 0:
+			var tier_key: String = str(s.get("tier", s.get("id", "basic")))
+			s["tier"] = tier_key
+			s["id"] = tier_key
+			var c: int = rod_casts(tier_key)
+			if c <= 0:
 				slots_list[idx] = {}
 			else:
-				s["qty"] = c if c > 0 else total_casts()
+				s["qty"] = c
+		"bait":
+			var c := bait_count(id)
+			if c <= 0:
+				slots_list[idx] = {}
+			else:
+				s["qty"] = c
 		"feed":
 			if feed <= 0:
 				slots_list[idx] = {}
@@ -311,6 +359,9 @@ func sync_slots_from_pools() -> void:
 	for r in rods:
 		if int(rods[r]) > 0 and not _has_item_in_slots("rod", str(r)):
 			_add_item_to_slots("rod", str(r), int(rods[r]), {"tier": str(r)})
+	for bid in baits:
+		if int(baits[bid]) > 0 and not _has_item_in_slots("bait", str(bid)):
+			_add_item_to_slots("bait", str(bid), int(baits[bid]))
 	if feed > 0 and not _has_item_in_slots("feed", ""):
 		_add_item_to_slots("feed", "", feed)
 	for sid in seeds:
@@ -347,7 +398,10 @@ func sync_active_item_from_hotbar() -> void:
 		"pickaxe":
 			active_item = {"type": "pickaxe", "tier": get_pickaxe_tier()}
 		"rod":
-			active_item = {"type": "rod", "tier": str(slot.get("tier", "basic"))}
+			var tier: String = str(slot.get("tier", slot.get("id", "basic")))
+			active_item = {"type": "rod", "tier": tier, "id": tier, "bait": attached_bait}
+		"bait":
+			active_item = {"type": "bait", "id": str(slot.get("id", ""))}
 		"feed":
 			active_item = {"type": "feed"}
 		"seed":
@@ -479,7 +533,7 @@ func swap_slots(source_area: String, source_idx: int, target_area: String, targe
 	if not src_item.is_empty() and not tgt_item.is_empty() \
 		and str(src_item.get("type", "")) == str(tgt_item.get("type", "")) \
 		and str(src_item.get("id", "")) == str(tgt_item.get("id", "")) \
-		and str(src_item.get("type", "")) in ["seed", "produce", "fish", "ore", "feed", "hoe"]:
+		and str(src_item.get("type", "")) in ["seed", "produce", "fish", "ore", "feed", "hoe", "bait"]:
 		tgt_item["qty"] = int(tgt_item.get("qty", 0)) + int(src_item.get("qty", 0))
 		src_list[source_idx] = {}
 	else:
@@ -504,7 +558,19 @@ func get_slot_icon(item: Dictionary) -> Texture2D:
 		"pickaxe":
 			return TextureGen.pickaxe_icon(str(item.get("tier", get_pickaxe_tier())))
 		"rod":
-			return TextureGen.get_tex("fx_rod")
+			var tier: String = str(item.get("tier", item.get("id", "basic")))
+			var r_info := FishDB.get_rod(tier)
+			var r_col: String = str(r_info.get("color", "9aa0a6"))
+			return TextureGen.rod_icon(r_col)
+		"bait":
+			var bid := str(item.get("id", ""))
+			if bid == "caterpillar":
+				return TextureGen.get_tex("caterpillar")
+			elif bid == "worm":
+				return TextureGen.get_tex("worm")
+			elif bid == "paste":
+				return TextureGen.get_tex("paste")
+			return TextureGen.get_feed_icon()
 		"feed":
 			return TextureGen.get_feed_icon()
 		"seed":
@@ -540,7 +606,16 @@ func get_slot_name(item: Dictionary) -> String:
 			var p := OreDB.get_pickaxe(str(item.get("tier", get_pickaxe_tier())))
 			return str(p.get("name", "Cúp khai mỏ"))
 		"rod":
-			return "Cần câu cá"
+			var tier: String = str(item.get("tier", item.get("id", "basic")))
+			var r_info := FishDB.get_rod(tier)
+			var r_name: String = str(r_info.get("name", "Cần câu cá"))
+			if attached_bait != "":
+				var b_name := FishDB.get_bait_name(attached_bait)
+				return "%s [Mồi: %s]" % [r_name, b_name]
+			return r_name
+		"bait":
+			var bid := str(item.get("id", ""))
+			return FishDB.get_bait_name(bid)
 		"feed":
 			return "Túi Cám"
 		"seed":
@@ -580,7 +655,30 @@ func get_slot_desc(item: Dictionary) -> String:
 			var p := OreDB.get_pickaxe(str(item.get("tier", get_pickaxe_tier())))
 			return "Dùng khai thác quặng và đập đá trong hầm mỏ.\nSức đập: Cấp %d · Tiêu tốn: %.0f⚡ thể lực." % [get_pickaxe_power(), float(p.get("stamina", 7.0))]
 		"rod":
-			return "Cần câu dùng để câu cá ở bờ ao.\nTiêu tốn: 15⚡ thể lực mỗi lần quăng cần.\nSố lượt câu còn lại: %d lượt." % total_casts()
+			var tier: String = str(item.get("tier", item.get("id", "basic")))
+			var r_info := FishDB.get_rod(tier)
+			var r_name: String = str(r_info.get("name", "Cần câu"))
+			var odds := FishDB.get_odds(tier, attached_bait)
+			var bait_status := "Chưa gắn mồi câu." if attached_bait == "" else ("Đang gắn: %s (còn ×%d mồi)" % [FishDB.get_bait_name(attached_bait), bait_count(attached_bait)])
+			var casts_left := rod_casts(tier)
+			return "%s\nSố lượt câu: %d lượt · Tiêu hao: 15⚡/lần\nTrạng thái: %s\nTỷ lệ câu:\n• Hụt: %.1f%%\n• Phổ thông: %.1f%%\n• Trung cấp: %.1f%%\n• Hiếm: %.2f%%\n• Huyền thoại: %.2f%%" % [
+				r_name,
+				casts_left,
+				bait_status,
+				odds.nothing * 100.0,
+				odds.common * 100.0,
+				odds.mid * 100.0,
+				odds.rare * 100.0,
+				odds.legend * 100.0
+			]
+		"bait":
+			var bid := str(item.get("id", ""))
+			var bdata := FishDB.get_bait(bid)
+			var b_name: String = str(bdata.get("name", "Mồi câu"))
+			var b_desc: String = str(bdata.get("desc", ""))
+			var is_att := (attached_bait == bid)
+			var att_str := "\n(Đang được gắn vào cần câu của bạn)" if is_att else ""
+			return "%s\nHiệu ứng: %s%s\nBấm nút bên dưới để gắn vào cần câu." % [b_name, b_desc, att_str]
 		"feed":
 			return "Cám cho gia súc, gia cầm Stardew Valley.\nĐến gần chuồng bấm E để cho ăn."
 		"seed":
@@ -616,6 +714,8 @@ func get_slot_category(item: Dictionary) -> String:
 	match t:
 		"hoe", "watering_can", "pickaxe", "rod":
 			return "Công cụ"
+		"bait":
+			return "Mồi câu"
 		"feed":
 			return "Thức ăn gia súc"
 		"seed":
@@ -645,7 +745,8 @@ func get_slot_qty(item: Dictionary) -> int:
 		"hoe":
 			return hoes
 		"rod":
-			return total_casts()
+			var tier: String = str(item.get("tier", item.get("id", "basic")))
+			return rod_casts(tier)
 		"pickaxe":
 			return get_pickaxe_power()
 		_:
@@ -716,7 +817,10 @@ func get_fallback_tool() -> Dictionary:
 	if water_max > 0:
 		return {"type": "watering_can"}
 	if total_casts() > 0:
-		return {"type": "rod"}
+		for t in ["basic", "mid", "high"]:
+			if rod_casts(t) > 0:
+				return {"type": "rod", "tier": t, "id": t}
+		return {"type": "rod", "tier": "basic", "id": "basic"}
 	if has_pickaxe():
 		return {"type": "pickaxe"}
 	if feed > 0:
@@ -953,6 +1057,8 @@ func _slot_matches_item(slot: Dictionary, category: String, id: String) -> bool:
 			return t == "produce" and str(slot.get("id", "")) == id
 		"fish":
 			return t == "fish" and str(slot.get("id", "")) == id
+		"bait", "baits":
+			return t == "bait" and str(slot.get("id", "")) == id
 		"ores", "ore":
 			return t == "ore" and str(slot.get("id", "")) == id
 		"feed", "cam":
@@ -960,7 +1066,7 @@ func _slot_matches_item(slot: Dictionary, category: String, id: String) -> bool:
 		"hoe":
 			return t == "hoe"
 		"rod":
-			return t == "rod"
+			return t == "rod" and (id == "" or str(slot.get("id", "")) == id or str(slot.get("tier", "")) == id)
 		"pickaxe":
 			return t == "pickaxe"
 	return false
@@ -1204,6 +1310,12 @@ func select_tool(tool_type: String) -> void:
 		if not s.is_empty() and str(s.get("type", "")) == tool_type:
 			select_hotbar_slot(i)
 			return
+	if tool_type == "rod":
+		for t in ["basic", "mid", "high"]:
+			if rod_casts(t) > 0:
+				active_item = {"type": "rod", "tier": t, "id": t, "bait": attached_bait}
+				changed.emit()
+				return
 	active_item = {"type": tool_type}
 	changed.emit()
 
@@ -1243,9 +1355,15 @@ func total_casts() -> int:
 	return n
 
 
-# Dùng 1 lượt câu (ưu tiên cần cấp thấp trước). Trả về tier đã dùng, "" nếu hết.
-func take_cast() -> String:
-	for tier in ["basic", "mid", "high"]:
+# Dùng 1 lượt câu (ưu tiên cần cấp thấp trước, hoặc preferred_tier nếu có). Trả về tier đã dùng, "" nếu hết.
+func take_cast(preferred_tier: String = "") -> String:
+	var tiers: Array = []
+	if preferred_tier != "":
+		tiers = [preferred_tier]
+	else:
+		tiers = ["basic", "mid", "high"]
+
+	for tier in tiers:
 		if int(rods.get(tier, 0)) > 0:
 			var rem := int(rods[tier]) - 1
 			if rem <= 0:
@@ -1259,6 +1377,91 @@ func take_cast() -> String:
 			changed.emit()
 			return tier
 	return ""
+
+
+# ---- mồi câu ----
+
+func add_bait(id: String, count: int = 1) -> void:
+	if count <= 0:
+		return
+	var canon := "caterpillar" if id == "sau_bo" else id
+	baits[canon] = int(baits.get(canon, 0)) + count
+	_add_item_to_slots("bait", canon, count)
+	sync_active_item_from_hotbar()
+	changed.emit()
+
+
+func bait_count(id: String) -> int:
+	var canon := "caterpillar" if id == "sau_bo" else id
+	var count := int(baits.get(canon, 0))
+	if canon == "caterpillar":
+		count += int(produce.get("sau_bo", 0))
+	return count
+
+
+func total_baits() -> int:
+	var total := 0
+	for k in baits:
+		total += int(baits[k])
+	total += int(produce.get("sau_bo", 0))
+	return total
+
+
+func take_bait(id: String, count: int = 1) -> bool:
+	if count <= 0:
+		return false
+	var canon := "caterpillar" if id == "sau_bo" else id
+	var cur := bait_count(canon)
+	if cur < count:
+		return false
+
+	var needed := count
+	var have_in_baits := int(baits.get(canon, 0))
+	if have_in_baits > 0:
+		var take_n := mini(have_in_baits, needed)
+		var rem := have_in_baits - take_n
+		if rem <= 0:
+			baits.erase(canon)
+		else:
+			baits[canon] = rem
+		_take_item_from_slots("bait", canon, take_n)
+		needed -= take_n
+
+	if needed > 0 and canon == "caterpillar":
+		var have_sb := int(produce.get("sau_bo", 0))
+		var take_sb := mini(have_sb, needed)
+		var rem_sb := have_sb - take_sb
+		if rem_sb <= 0:
+			produce.erase("sau_bo")
+		else:
+			produce["sau_bo"] = rem_sb
+		_take_item_from_slots("produce", "sau_bo", take_sb)
+		needed -= take_sb
+
+	if attached_bait == canon and bait_count(canon) <= 0:
+		attached_bait = ""
+
+	sync_active_item_from_hotbar()
+	changed.emit()
+	return true
+
+
+func attach_bait(id: String) -> bool:
+	if id == "":
+		detach_bait()
+		return true
+	var canon := "caterpillar" if id == "sau_bo" else id
+	if bait_count(canon) <= 0:
+		return false
+	attached_bait = canon
+	changed.emit()
+	return true
+
+
+func detach_bait() -> void:
+	attached_bait = ""
+	changed.emit()
+
 
 
 # ---- cá ----
@@ -1294,7 +1497,15 @@ func take_fish(id: String, n: int = 1) -> bool:
 
 func get_coop_tier(species_id: String) -> int:
 	var sid := PoultryDB.get_canonical_id(species_id)
-	return int(coop_tiers.get(sid, 0))
+	var t := int(coop_tiers.get(sid, 0))
+	if t > 0:
+		return t
+	if (sid == "chicken" or species_id == "small") and int(coops.get("small", 0)) > 0:
+		return 1
+	if (sid in ["cow", "pig", "sheep"] or species_id == "large") and int(coops.get("large", 0)) > 0:
+		return 1
+	return 0
+
 
 
 func coop_count(size: String) -> int:
@@ -1373,6 +1584,29 @@ func free_slots(species_id: String) -> int:
 	return 0
 
 
+func set_coop_tier(species_id: String, tier: int) -> void:
+	var sid := PoultryDB.get_canonical_id(species_id)
+	coop_tiers[sid] = clampi(tier, 0, 4)
+	changed.emit()
+	pens_structure_changed.emit()
+
+
+func add_animal(species_id: String) -> void:
+	var canon_id := PoultryDB.get_canonical_id(species_id)
+	animals.append({
+		"id": canon_id,
+		"progress": 0.0,
+		"ready": 0,
+		"fed": false,
+		"is_baby": false,
+		"grow_progress": 0.0,
+		"is_sheared": false,
+		"times_fed": 0,
+	})
+	changed.emit()
+	pens_structure_changed.emit()
+
+
 func buy_coop(species_id: String) -> String:
 	var sid := PoultryDB.get_canonical_id(species_id)
 	var c := PoultryDB.get_coop_data(sid)
@@ -1384,9 +1618,7 @@ func buy_coop(species_id: String) -> String:
 	var price := int(c.tier1_price)
 	if not GameState.try_spend(price):
 		return "Không đủ xu mua %s (cần %d xu)!" % [str(c.name), price]
-	coop_tiers[sid] = 1
-	changed.emit()
-	pens_structure_changed.emit()
+	set_coop_tier(sid, 1)
 	return ""
 
 
@@ -1404,9 +1636,7 @@ func upgrade_coop(species_id: String) -> String:
 	var price := PoultryDB.get_coop_upgrade_price(sid, next_tier)
 	if not GameState.try_spend(price):
 		return "Không đủ xu nâng cấp lên Cấp %d (cần %d xu)!" % [next_tier, price]
-	coop_tiers[sid] = next_tier
-	changed.emit()
-	pens_structure_changed.emit()
+	set_coop_tier(sid, next_tier)
 	return ""
 
 
@@ -1428,19 +1658,9 @@ func buy_animal(id: String) -> String:
 			return "%s đã đạt giới hạn tối đa (%d/16 con)!" % [cname, animals_of_species(canon_id)]
 	if not GameState.try_spend(int(a.price)):
 		return "Không đủ xu mua %s!" % a.name
-	animals.append({
-		"id": canon_id,
-		"progress": 0.0,
-		"ready": 0,
-		"fed": false,
-		"is_baby": false,
-		"grow_progress": 0.0,
-		"is_sheared": false,
-		"times_fed": 0,
-	})
-	changed.emit()
-	pens_structure_changed.emit()
+	add_animal(canon_id)
 	return ""
+
 
 
 # Đồng hồ chăn nuôi:
@@ -1716,7 +1936,7 @@ func get_state() -> Dictionary:
 		"hoes": hoes, "hoe_tier": get_hoe_tier(), "water_level": water_level, "water_max": water_max,
 		"pickaxe": pickaxe, "ores": ores.duplicate(),
 		"active_item": active_item.duplicate(),
-		"rods": rods.duplicate(), "fish": fish.duplicate(),
+		"rods": rods.duplicate(), "baits": baits.duplicate(), "attached_bait": attached_bait, "fish": fish.duplicate(),
 		"feed": feed,
 		"coops": coops.duplicate(),
 		"coop_tiers": coop_tiers.duplicate(),
@@ -1776,6 +1996,13 @@ func set_state(d: Dictionary) -> void:
 			var c := int(d["rods"][k])
 			if c > 0:
 				rods[str(k)] = c
+	baits = {}
+	if d.has("baits"):
+		for k in d["baits"]:
+			var c := int(d["baits"][k])
+			if c > 0:
+				baits[str(k)] = c
+	attached_bait = str(d.get("attached_bait", ""))
 	if d.has("fish"):
 		for k in d["fish"]:
 			var c := int(d["fish"][k])

@@ -149,19 +149,8 @@ func continue_game() -> void:
 	if d.has("game_speed"):
 		GameState.set_game_speed(float(d["game_speed"]))
 
-	Inventory.set_state({
-		"seeds": d.get("seeds", {}),
-		"produce": d.get("produce", {}),
-		"sel": d.get("sel", ""),
-		"hoes": d.get("hoes", 0),
-		"water_level": d.get("water_level", 20),
-		"water_max": d.get("water_max", 20),
-		"active_item": d.get("active_item", {"type": "hoe"}),
-		"rods": d.get("rods", {}),
-		"fish": d.get("fish", {}),
-		"coops": d.get("coops", {}),
-		"animals": d.get("animals", []),
-	})
+	Inventory.set_state(d)
+
 
 	var mb_dict = d.get("mailbox", null)
 	if typeof(mb_dict) == TYPE_DICTIONARY and not mb_dict.is_empty() and (mb_dict.has("produce") or mb_dict.has("fish")):
