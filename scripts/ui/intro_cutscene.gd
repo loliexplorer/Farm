@@ -10,10 +10,12 @@ signal intro_finished
 
 const TOTAL_SEGMENTS: int = 13
 const SEGMENT_DURATION: float = 5.0
+const MIN_ADVANCE_INTERVAL_MS: int = 320 # Ngăn chặn bắt đúp sự kiện khi cả Mouse và Touch đều phát ra
 
 var _texture_cache: Dictionary = {}
 var _current_segment: int = 1
 var _timer: float = 0.0
+var _last_advance_msec: int = 0
 var _is_playing: bool = false
 var _on_finished_cb: Callable
 
@@ -24,6 +26,7 @@ var _img_rect_b: TextureRect
 var _active_is_a: bool = true
 var _fade_tween: Tween
 
+var _click_area: Control
 var _skip_btn: Button
 var _timer_bar: ProgressBar
 var _hint_label: Label
@@ -67,12 +70,12 @@ func _build_ui() -> void:
 	_root.add_child(_img_rect_b)
 
 	# 3. Lớp tương tác click toàn màn hình (Click vào lời / tranh để qua đoạn ngay)
-	var click_area := Control.new()
-	click_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	click_area.mouse_filter = Control.MOUSE_FILTER_STOP
-	click_area.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	click_area.gui_input.connect(_on_screen_gui_input)
-	_root.add_child(click_area)
+	_click_area = Control.new()
+	_click_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_click_area.mouse_filter = Control.MOUSE_FILTER_STOP
+	_click_area.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_click_area.gui_input.connect(_on_screen_gui_input)
+	_root.add_child(_click_area)
 
 	# 4. Thanh tiến trình đếm ngược 5s ở cạnh dưới màn hình
 	_timer_bar = ProgressBar.new()
@@ -108,9 +111,7 @@ func _build_ui() -> void:
 	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hint_label)
 
-
-
-	# 7. Nút Bỏ qua (Skip / Ship) ở góc trên-phải
+	# 6. Nút Bỏ qua (Skip / Ship) ở góc trên-phải
 	_skip_btn = Button.new()
 	_skip_btn.text = "Bỏ qua ⏭️"
 	_skip_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -138,6 +139,7 @@ func _process(delta: float) -> void:
 	_timer_bar.value = clampf(SEGMENT_DURATION - _timer, 0.0, SEGMENT_DURATION)
 
 	if _timer >= SEGMENT_DURATION:
+		_last_advance_msec = Time.get_ticks_msec()
 		next_segment()
 
 
@@ -151,21 +153,48 @@ func _unhandled_input(event: InputEvent) -> void:
 			skip_intro()
 		elif event.keycode in [KEY_SPACE, KEY_ENTER, KEY_E]:
 			get_viewport().set_input_as_handled()
-			next_segment()
+			var now_msec := Time.get_ticks_msec()
+			if now_msec - _last_advance_msec >= MIN_ADVANCE_INTERVAL_MS:
+				_last_advance_msec = now_msec
+				next_segment()
 
 
 func _on_screen_gui_input(event: InputEvent) -> void:
 	if not _is_playing:
 		return
-	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-		next_segment()
+
+	var is_act := false
+	if event is InputEventMouseButton:
+		if event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
+			is_act = true
+	elif event is InputEventScreenTouch:
+		if event.is_pressed():
+			is_act = true
+
+	if not is_act:
+		return
+
+	# Ngăn chặn hiện tượng gửi đồng thời cả Touch và Mouse khiến bỏ cóc một đoạn tranh
+	var now_msec := Time.get_ticks_msec()
+	if now_msec - _last_advance_msec < MIN_ADVANCE_INTERVAL_MS:
+		if _click_area != null:
+			_click_area.accept_event()
+		return
+
+	_last_advance_msec = now_msec
+	if _click_area != null:
+		_click_area.accept_event()
+	next_segment()
 
 
 # Bắt đầu trình chiếu giới thiệu
 func start_intro(callback: Callable = Callable()) -> void:
+	if _root == null:
+		_build_ui()
 	_on_finished_cb = callback
 	_current_segment = 1
 	_timer = 0.0
+	_last_advance_msec = Time.get_ticks_msec()
 	_is_playing = true
 	visible = true
 
@@ -228,7 +257,8 @@ func _show_segment(idx: int) -> void:
 
 
 func _update_header() -> void:
-	_timer_bar.value = SEGMENT_DURATION
+	if _timer_bar != null:
+		_timer_bar.value = SEGMENT_DURATION
 
 
 # Bỏ qua toàn bộ phần giới thiệu vào thẳng game
@@ -274,14 +304,38 @@ func _preload_texture(idx: int) -> void:
 
 
 func _load_texture(idx: int) -> Texture2D:
+	if _texture_cache.has(idx):
+		return _texture_cache[idx]
+
 	var path := "res://picture/GioiThieu/Doan%d.jpg" % idx
-	var img := Image.new()
-	var err := img.load(path)
-	if err != OK:
-		var global_path := ProjectSettings.globalize_path(path)
-		err = img.load(global_path)
-	if err == OK:
-		var tex := ImageTexture.create_from_image(img)
+	var tex: Texture2D = null
+
+	# 1. Nạp qua ResourceLoader (hỗ trợ tối ưu trong môi trường xuất file PCK/APK Android)
+	if ResourceLoader.exists(path):
+		var res: Resource = ResourceLoader.load(path)
+		if res is Texture2D:
+			tex = res
+
+	# 2. Thử hàm load() tích hợp
+	if tex == null:
+		var l_res = load(path)
+		if l_res is Texture2D:
+			tex = l_res
+
+	# 3. Dự phòng nạp trực tiếp qua Image nếu chạy debug hoặc tệp thô chưa qua import
+	if tex == null:
+		var img := Image.new()
+		var err := img.load(path)
+		if err != OK:
+			var global_path := ProjectSettings.globalize_path(path)
+			if global_path != "" and FileAccess.file_exists(global_path):
+				err = img.load(global_path)
+		if err == OK:
+			tex = ImageTexture.create_from_image(img)
+
+	if tex != null:
 		_texture_cache[idx] = tex
 		return tex
+
+	push_warning("IntroCutscene: Không thể nạp ảnh Doan%d.jpg" % idx)
 	return null

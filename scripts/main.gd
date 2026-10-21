@@ -568,6 +568,28 @@ func continue_game() -> void:
 func _back_to_title() -> void:
 	save_load_manager.back_to_title()
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		# Xử lý phím Back / cử chỉ vuốt quay lại trên điện thoại Android
+		if mode == Mode.TITLE:
+			if is_instance_valid(intro_cutscene) and intro_cutscene.is_playing():
+				intro_cutscene.skip_intro()
+			elif is_instance_valid(title_screen) and "_guide_overlay" in title_screen and title_screen._guide_overlay != null and title_screen._guide_overlay.visible:
+				title_screen._guide_overlay.visible = false
+			else:
+				get_tree().quit()
+		elif mode == Mode.DIALOG:
+			if is_instance_valid(dialog_box):
+				dialog_box.advance()
+		elif ui_coordinator != null and ui_coordinator.is_any_panel_open():
+			_close_panels()
+		elif is_instance_valid(pause_menu) and pause_menu.visible:
+			_resume_from_pause()
+		elif mode == Mode.PLAY and not get_tree().paused:
+			if is_instance_valid(pause_menu):
+				pause_menu.open()
+				get_tree().paused = true
+
 # Quản lý Debug & Clicktest (Ủy quyền cho DebugRunner & ClicktestRunner)
 func _debug_step() -> void:
 	debug_runner.debug_step()

@@ -513,7 +513,7 @@ func _hit_rock(rock_data: Dictionary) -> void:
 
 	if not Inventory.has_pickaxe():
 		if main_game != null and main_game.hud != null:
-			main_game.hud.toast("Cần có Cúp khai mỏ để đập đá! (Nói chuyện với Leah)", Color(1.0, 0.6, 0.5))
+			main_game.hud.toast("Cần có Cúp khai mỏ để đập đá! (Nói chuyện với Tiên)", Color(1.0, 0.6, 0.5))
 		return
 
 	var cost: float = 5.0

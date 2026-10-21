@@ -1,5 +1,5 @@
 extends CanvasLayer
-# Bàn Rèn Nâng Cấp Dụng Cụ (Leah) - Giảm tiêu hao thể lực và tăng hiệu suất.
+# Bàn Rèn Nâng Cấp Dụng Cụ (Tiên) - Giảm tiêu hao thể lực và tăng hiệu suất.
 
 const OreDB := preload("res://scripts/ore_db.gd")
 const TextureGen := preload("res://scripts/texture_gen.gd")
@@ -70,7 +70,7 @@ func _ready() -> void:
 	head.add_theme_constant_override("separation", 14)
 	v.add_child(head)
 
-	var title := UIKit.title_label(head, "⚒️ LÒ RÈN DỤNG CỤ - LEAH", 22, Color(1.0, 0.88, 0.45))
+	var title := UIKit.title_label(head, "⚒️ LÒ RÈN DỤNG CỤ - TIÊN", 22, Color(1.0, 0.88, 0.45))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var btn_close := UIKit.styled_button(head, "✕ Đóng", 14, "close")
@@ -140,7 +140,7 @@ func _ready() -> void:
 	_build_hoe_card(cards_hb)
 	_build_pickaxe_card(cards_hb)
 
-	# --- Footer: Lời khuyên của Leah ---
+	# --- Footer: Lời khuyên của Tiên ---
 	var tip_box := PanelContainer.new()
 	tip_box.add_theme_stylebox_override("panel", UIKit.badge_box(Color(0.12, 0.09, 0.07, 0.8), Color(0.4, 0.3, 0.2), 6))
 	v.add_child(tip_box)
@@ -243,7 +243,7 @@ func _build_pickaxe_card(parent: Control) -> void:
 	# Thông số hiện tại
 	pickaxe_power_label = UIKit.label(vb, "🔨 Sức đập quặng: Cấp 1", 14, Color(0.7, 0.85, 1.0))
 	pickaxe_stamina_label = UIKit.label(vb, "⚡ Thể lực tiêu hao: 5⚡ / lần đập", 14, Color(1.0, 0.75, 0.45))
-	pickaxe_desc_label = UIKit.label(vb, "Cúp đập đá do Leah tặng.", 13, UIKit.COLOR_TEXT_MUTED)
+	pickaxe_desc_label = UIKit.label(vb, "Cúp đập đá do Tiên tặng.", 13, UIKit.COLOR_TEXT_MUTED)
 	pickaxe_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	var sep2 := HSeparator.new()
@@ -328,9 +328,9 @@ func refresh() -> void:
 		pickaxe_tier_label.text = "Chưa sở hữu Cúp"
 		pickaxe_power_label.text = "🔨 Sức đập quặng: 0"
 		pickaxe_stamina_label.text = "⚡ Thể lực tiêu hao: 5⚡"
-		pickaxe_desc_label.text = "Hãy nói chuyện với Leah ở cửa mỏ để nhận Cúp sơ cấp miễn phí!"
+		pickaxe_desc_label.text = "Hãy nói chuyện với Tiên ở cửa mỏ để nhận Cúp sơ cấp miễn phí!"
 		pickaxe_next_title.text = "Nhận Cúp sơ cấp trước"
-		pickaxe_next_stats.text = "Gặp Leah tại cửa hầm mỏ Tây Bắc."
+		pickaxe_next_stats.text = "Gặp Tiên tại cửa hầm mỏ Tây Bắc."
 		pickaxe_cost_label.text = ""
 		pickaxe_upgrade_btn.text = "CHƯA CÓ CÚP"
 		pickaxe_upgrade_btn.disabled = true

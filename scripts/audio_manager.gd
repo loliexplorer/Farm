@@ -3,7 +3,8 @@ extends Node
 
 const SoundGen := preload("res://scripts/sound_gen.gd")
 
-const BGM_PATH := "res://game_assets/audio/bgm.mp3"
+const BGM_PATH := "res://audio/bgm.mp3"
+const BGM_FALLBACK_PATH := "res://game_assets/audio/bgm.mp3"
 const SETTINGS_PATH := "user://audio_settings.json"
 const MAX_SFX_CHANNELS := 12
 
@@ -71,17 +72,27 @@ func play_sfx(kind: String, pitch_scale: float = 1.0, volume_offset_db: float = 
 
 
 func _load_stream() -> AudioStream:
-	if FileAccess.file_exists(BGM_PATH):
-		var f := FileAccess.open(BGM_PATH, FileAccess.READ)
-		if f != null:
-			var bytes := f.get_buffer(f.get_length())
-			f.close()
-			var mp3 := AudioStreamMP3.new()
-			mp3.data = bytes
-			mp3.loop = true
-			return mp3
-	if ResourceLoader.exists(BGM_PATH):
-		return load(BGM_PATH)
+	var candidates := [
+		BGM_PATH,
+		BGM_FALLBACK_PATH,
+	]
+	for path in candidates:
+		if ResourceLoader.exists(path):
+			var res = ResourceLoader.load(path)
+			if res is AudioStreamMP3:
+				res.loop = true
+				return res
+			elif res is AudioStream:
+				return res
+		if FileAccess.file_exists(path):
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				var bytes := f.get_buffer(f.get_length())
+				f.close()
+				var mp3 := AudioStreamMP3.new()
+				mp3.data = bytes
+				mp3.loop = true
+				return mp3
 	return null
 
 

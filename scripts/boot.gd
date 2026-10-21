@@ -9,7 +9,7 @@ const ACTIONS := {
 	"interact": [KEY_E, KEY_SPACE],
 	"inventory": [KEY_I, KEY_TAB],
 	"cycle_seed": [KEY_R],
-	"pause": [KEY_ESCAPE],
+	"pause": [KEY_ESCAPE, KEY_BACK],
 	"quick_eat": [KEY_F],
 }
 
@@ -24,6 +24,6 @@ func _init() -> void:
 			InputMap.action_add_event(action, ev)
 
 	var f := SystemFont.new()
-	f.font_names = PackedStringArray(["Segoe UI", "Arial", "Tahoma"])
+	f.font_names = PackedStringArray(["Segoe UI", "Roboto", "Noto Sans", "Arial", "Tahoma", "sans-serif"])
 	ThemeDB.fallback_font = f
 	ThemeDB.fallback_font_size = 16

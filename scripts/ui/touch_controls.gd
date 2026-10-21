@@ -284,7 +284,7 @@ func set_action_label(hint: String) -> void:
 		act_txt = "⛏️ ĐÀO"
 	elif "xuống" in lower or "lên" in lower or "cầu thang" in lower:
 		act_txt = "🪜 THANG"
-	elif "nói" in lower or "bác tư" in lower or "chú hai" in lower or "cô tư" in lower or "trưởng thôn" in lower or "leah" in lower:
+	elif "nói" in lower or "bác tư" in lower or "chú hai" in lower or "cô tư" in lower or "trưởng thôn" in lower or "tiên" in lower or "leah" in lower:
 		act_txt = "💬 NÓI"
 	elif "mèo" in lower:
 		act_txt = "🐱 MÈO"

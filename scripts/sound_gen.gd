@@ -4,7 +4,8 @@ extends RefCounted
 # Có cơ chế tổng hợp sóng âm dự phòng nếu file âm thanh chưa sẵn sàng.
 
 static var _cache: Dictionary = {}
-const AUDIO_DIR := "res://game_assets/audio/"
+const AUDIO_DIRS: Array[String] = ["res://audio/", "res://game_assets/audio/"]
+const AUDIO_DIR := "res://audio/"
 const MIX_RATE := 22050
 
 
@@ -13,14 +14,16 @@ static func get_sfx(kind: String) -> AudioStreamWAV:
 		return _cache[kind]
 
 	# 1. Thử tải file WAV gốc chuẩn Stardew Valley từ thư mục tài nguyên
-	var wav_path := AUDIO_DIR + "sfx_" + kind + ".wav"
+	var file_name := "sfx_" + kind + ".wav"
 	if kind == "catch_pest":
-		wav_path = AUDIO_DIR + "sfx_bush_rustle.wav"
+		file_name = "sfx_bush_rustle.wav"
 
-	var loaded_wav := _load_wav_file(wav_path)
-	if loaded_wav != null:
-		_cache[kind] = loaded_wav
-		return loaded_wav
+	for dir in AUDIO_DIRS:
+		var wav_path := dir + file_name
+		var loaded_wav := _load_wav_file(wav_path)
+		if loaded_wav != null:
+			_cache[kind] = loaded_wav
+			return loaded_wav
 
 	# 2. Dự phòng: tổng hợp âm thanh bằng thuật toán nếu không có file WAV
 	var synth_wav := _synthesize(kind)
@@ -30,6 +33,18 @@ static func get_sfx(kind: String) -> AudioStreamWAV:
 
 
 static func _load_wav_file(path: String) -> AudioStreamWAV:
+	# 1. Ưu tiên nạp qua ResourceLoader (hỗ trợ tuyệt đối khi chạy trong môi trường xuất file APK / PCK)
+	if ResourceLoader.exists(path):
+		var res: Resource = ResourceLoader.load(path)
+		if res is AudioStreamWAV:
+			return res as AudioStreamWAV
+
+	# 2. Thử nạp qua load()
+	var l_res = load(path)
+	if l_res is AudioStreamWAV:
+		return l_res as AudioStreamWAV
+
+	# 3. Nạp thủ công từ FileAccess và phân tích cấu trúc RIFF WAV
 	if not FileAccess.file_exists(path):
 		return null
 	var f := FileAccess.open(path, FileAccess.READ)

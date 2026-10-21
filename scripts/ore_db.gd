@@ -77,7 +77,7 @@ const PICKAXES := [
 		"ore_type": "",
 		"ore_count": 0,
 		"color": "9e9e9e",
-		"desc": "Cúp bằng đá và gỗ do Leah tặng. Tiêu hao 5⚡ mỗi lần đập."
+		"desc": "Cúp bằng đá và gỗ do Tiên tặng. Tiêu hao 5⚡ mỗi lần đập."
 	},
 	{
 		"tier": "copper",

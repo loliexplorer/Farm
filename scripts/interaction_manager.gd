@@ -64,7 +64,7 @@ func build_interactables() -> void:
 		{"pos": WorldBuilderScript.MARKET_STALL_POS + Vector2(0, 16), "r": 65.0, "label": "Sạp hàng 🏪", "cb": main._open_market_stall},
 		{"pos": WorldBuilderScript.MINE_ENTRANCE_POS + Vector2(0, 24), "r": 50.0, "label": "Vào Hầm Mỏ ⛏️", "cb": main._enter_mine},
 		{"pos": WorldBuilderScript.MINE_SIGN_POS, "r": 40.0, "label": "Biển báo Hầm Mỏ 📜", "cb": read_mine_sign},
-		{"pos": WorldBuilderScript.LEAH_MINER_POS, "r": 45.0, "label": "Leah ⛏️ (Nâng cấp Nông Cụ)", "cb": talk_leah},
+		{"pos": WorldBuilderScript.LEAH_MINER_POS, "r": 45.0, "label": "Tiên ⛏️ (Nâng cấp Nông Cụ)", "cb": talk_leah},
 		{"pos": WorldBuilderScript.STAND_POS, "r": 60.0, "label": "Bác Tư", "cb": talk_npc},
 		{"pos": WorldBuilderScript.STAND_HAI_POS, "r": 60.0, "label": "Chú Hai", "cb": talk_hai},
 		{"pos": WorldBuilderScript.STAND_TU_POS, "r": 60.0, "label": "Cô Tư", "cb": talk_tu},
@@ -459,7 +459,7 @@ func on_dialog_finished() -> void:
 		main.get_tree().paused = false
 		Inventory.add_pickaxe("basic")
 		if is_instance_valid(main.hud):
-			main.hud.toast("Nhận được Cúp khai mỏ sơ cấp từ Leah! ⛏️", Color(0.7, 1.0, 0.7))
+			main.hud.toast("Nhận được Cúp khai mỏ sơ cấp từ Tiên! ⛏️", Color(0.7, 1.0, 0.7))
 		return
 	elif _dialog_next == "tool_upgrade":
 		main._open_tool_upgrade_panel()
@@ -478,15 +478,15 @@ func talk_leah() -> void:
 	main.get_tree().paused = true
 	if not Inventory.has_pickaxe():
 		_dialog_next = "leah_gift"
-		main.dialog_box.start("Leah", [
-			"Chào bạn! Mình là Leah.",
+		main.dialog_box.start("Tiên", [
+			"Chào bạn! Mình là Tiên.",
 			"Đây là hầm mỏ bỏ hoang của làng, dưới lòng đất ẩn chứa rất nhiều khoáng sản quý giá như Đồng, Sắt, Vàng và Đá quý hiếm.",
 			"Mình tặng bạn chiếc Cúp sơ cấp này nhé! Hãy cầm Cúp và xuống mỏ thử vận may nào!"
 		])
 		_leah_met = true
 	else:
 		_dialog_next = "tool_upgrade"
-		main.dialog_box.start("Leah", [
+		main.dialog_box.start("Tiên", [
 			"Chào bạn! Hầm mỏ gồm tất cả 20 tầng, càng xuống sâu sẽ càng có nhiều quặng quý hiếm.",
 			"Nếu có đủ Quặng và Vàng, mình sẽ rèn nâng cấp Cuốc đất và Cúp mỏ cho bạn để làm việc đỡ tốn thể lực hơn nhé!"
 		])

@@ -34,7 +34,7 @@ func fade_transition(on_mid: Callable) -> void:
 func enter_mine() -> void:
 	if not Inventory.has_pickaxe():
 		if is_instance_valid(main.hud):
-			main.hud.toast("Hãy nói chuyện với Leah để nhận Cúp trước khi vào mỏ! ⛏️", Color(1.0, 0.85, 0.5))
+			main.hud.toast("Hãy nói chuyện với Tiên để nhận Cúp trước khi vào mỏ! ⛏️", Color(1.0, 0.85, 0.5))
 		return
 
 	fade_transition(func():
